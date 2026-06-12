@@ -21,6 +21,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.sch.plancast.data.local.ScheduleEntity;
 import com.sch.plancast.data.repository.ScheduleRepository;
+import com.sch.plancast.data.repository.WeatherRepository;
 import com.sch.plancast.location.LocationProvider;
 import com.sch.plancast.ui.schedule.ScheduleAdapter;
 import com.sch.plancast.ui.schedule.ScheduleFormActivity;
@@ -35,9 +36,11 @@ public class MainActivity extends AppCompatActivity {
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
 
     private ScheduleRepository scheduleRepository;
+    private WeatherRepository weatherRepository;
     private ScheduleAdapter scheduleAdapter;
     private LocationProvider locationProvider;
     private TextView locationStatusTextView;
+    private TextView weatherInfoTextView;
     private TextView selectedDateTextView;
     private TextView emptyTextView;
     private String selectedDate;
@@ -54,10 +57,12 @@ public class MainActivity extends AppCompatActivity {
         });
 
         scheduleRepository = new ScheduleRepository(this);
+        weatherRepository = new WeatherRepository();
         locationProvider = new LocationProvider(this);
         selectedDate = formatDate(System.currentTimeMillis());
 
         locationStatusTextView = findViewById(R.id.locationStatusTextView);
+        weatherInfoTextView = findViewById(R.id.weatherInfoTextView);
         selectedDateTextView = findViewById(R.id.selectedDateTextView);
         emptyTextView = findViewById(R.id.emptyTextView);
 
@@ -155,21 +160,44 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadCurrentLocation() {
         locationStatusTextView.setText("현재 위치를 확인하는 중입니다");
+        weatherInfoTextView.setText("날씨 정보: 현재 위치 확인 후 조회합니다");
         locationProvider.getCurrentLocation(new LocationProvider.LocationCallback() {
             @Override
             public void onLocationReceived(double latitude, double longitude) {
-                runOnUiThread(() -> locationStatusTextView.setText(String.format(
-                        Locale.US,
-                        "현재 위치: %.4f, %.4f",
-                        latitude,
-                        longitude
-                )));
+                runOnUiThread(() -> {
+                    locationStatusTextView.setText(String.format(
+                            Locale.US,
+                            "현재 위치: %.4f, %.4f",
+                            latitude,
+                            longitude
+                    ));
+                    loadCurrentWeather(latitude, longitude);
+                });
             }
 
             @Override
             public void onLocationError(String errorMessage) {
                 runOnUiThread(() -> {
                     locationStatusTextView.setText(errorMessage);
+                    weatherInfoTextView.setText("날씨 정보: 위치를 확인할 수 없어 조회하지 않았습니다");
+                    Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+
+    private void loadCurrentWeather(double latitude, double longitude) {
+        weatherInfoTextView.setText("현재 날씨를 불러오는 중입니다");
+        weatherRepository.getCurrentWeather(latitude, longitude, new WeatherRepository.WeatherCallback() {
+            @Override
+            public void onSuccess(WeatherRepository.WeatherInfo weatherInfo) {
+                runOnUiThread(() -> weatherInfoTextView.setText(weatherInfo.toDisplayText()));
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                runOnUiThread(() -> {
+                    weatherInfoTextView.setText(errorMessage);
                     Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
                 });
             }
@@ -179,6 +207,7 @@ public class MainActivity extends AppCompatActivity {
     private void showLocationPermissionDeniedMessage() {
         String message = "위치 권한이 없어 날씨 기능을 사용할 수 없습니다";
         locationStatusTextView.setText(message);
+        weatherInfoTextView.setText("날씨 정보: 위치 권한이 필요합니다");
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 

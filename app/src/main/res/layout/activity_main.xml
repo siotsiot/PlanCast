@@ -27,13 +27,13 @@
     <CalendarView
         android:id="@+id/calendarView"
         android:layout_width="0dp"
-        android:layout_height="300dp"
+        android:layout_height="260dp"
         android:layout_marginTop="12dp"
         android:background="#FFFFFF"
         android:elevation="1dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/locationStatusTextView" />
+        app:layout_constraintTop_toBottomOf="@id/weatherInfoTextView" />
 
     <TextView
         android:id="@+id/locationStatusTextView"
@@ -51,6 +51,24 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/appTitleTextView" />
+
+    <TextView
+        android:id="@+id/weatherInfoTextView"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="#FFFFFF"
+        android:lineSpacingExtra="2dp"
+        android:paddingStart="12dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="10dp"
+        android:text="날씨 정보: 현재 위치 확인 후 조회합니다"
+        android:textColor="#1D2433"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/locationStatusTextView" />
 
     <TextView
         android:id="@+id/selectedDateTextView"

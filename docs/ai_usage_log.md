@@ -237,3 +237,57 @@
 ### 빌드 및 실행 테스트 결과
 - `./gradlew.bat assembleDebug` 실행 결과 `BUILD SUCCESSFUL`을 확인했다.
 - 날씨 응답을 받을 수 있는 경우 위험 안내와 추천 준비물이 화면에 표시되는 구조를 확인했다.
+
+## 7. 일정 알림 기능 구현
+
+### 사용한 AI 도구
+- Codex
+
+### AI에게 요청한 내용
+- 야외 일정이 저장될 때 일정 시작 30분 전에 알림을 예약하도록 요청했다.
+- `AlarmManager`와 `NotificationManager` 기반 알림 구조를 구현하도록 요청했다.
+- 미래 날씨 예보 API 호출은 하지 않고, 기존 일정 CRUD, 위치 조회, 날씨 API, WeatherAdvisor 기능을 유지하도록 요청했다.
+- Android 13 이상에서 `POST_NOTIFICATIONS` 권한이 없어도 앱이 강제 종료되지 않도록 요청했다.
+
+### AI가 생성하거나 수정한 코드
+- `app/src/main/java/com/sch/plancast/notification/NotificationHelper.java`
+  - `plancast_schedule_channel` 알림 채널을 생성하도록 구현했다.
+  - 알림 제목과 내용을 받아 Notification을 표시하는 메서드를 추가했다.
+  - Android 13 이상에서 알림 권한이 없으면 알림 표시를 생략하여 앱이 종료되지 않도록 처리했다.
+- `app/src/main/java/com/sch/plancast/notification/PlanAlarmReceiver.java`
+  - `BroadcastReceiver`를 생성했다.
+  - Intent에서 일정 id, 제목, 날짜, 시간, 활동 유형 정보를 받도록 구현했다.
+  - `NotificationHelper`를 사용해 "PlanCast 일정 알림" 알림을 표시하도록 구현했다.
+- `app/src/main/java/com/sch/plancast/notification/AlarmScheduler.java`
+  - `AlarmManager`로 일정 시작 30분 전 알림을 예약하도록 구현했다.
+  - 일정 시간이 지났거나 30분 전 알림 시간이 이미 지난 경우 예약을 생략하도록 처리했다.
+  - `scheduleId`를 PendingIntent requestCode로 사용해 일정별 알림을 구분했다.
+  - `cancelNotification`으로 수정/삭제 시 기존 알림을 취소할 수 있게 구현했다.
+- `app/src/main/java/com/sch/plancast/ui/schedule/ScheduleFormActivity.java`
+  - 새 야외 일정 저장 후 알림을 예약하도록 연결했다.
+  - 일정 수정 후 기존 알림을 취소하고, 야외 일정이면 다시 예약하도록 연결했다.
+  - 일정 삭제 시 예약된 알림을 취소하도록 연결했다.
+- `app/src/main/java/com/sch/plancast/data/local/ScheduleDao.java`
+  - 새 일정 저장 후 생성된 id를 알 수 있도록 `insert` 반환값을 `long`으로 변경했다.
+- `app/src/main/java/com/sch/plancast/data/repository/ScheduleRepository.java`
+  - Room이 생성한 id를 `ScheduleEntity`에 반영하도록 insert 흐름을 보강했다.
+- `app/src/main/AndroidManifest.xml`
+  - `POST_NOTIFICATIONS` 권한을 추가했다.
+  - `PlanAlarmReceiver`를 등록했다.
+
+### 팀원이 검토한 내용
+- 야외 일정만 알림 예약 대상인지 확인했다.
+- 실내 일정은 알림을 예약하지 않는지 확인했다.
+- 수정 시 기존 알림이 취소되고, 야외 일정이면 새 알림이 예약되는지 검토했다.
+- 삭제 시 예약된 알림이 취소되는지 검토했다.
+- 기존 일정 CRUD, 위치 조회, 날씨 API, WeatherAdvisor 코드가 제거되지 않았는지 확인했다.
+
+### 직접 수정하거나 확인한 내용
+- 새 일정 저장 후 Room autoGenerate id가 알림 requestCode로 사용될 수 있도록 Repository insert 흐름을 확인했다.
+- Android 12 이상 exact alarm 권한 문제를 피하기 위해 `setExactAndAllowWhileIdle`을 사용하지 않았는지 확인했다.
+- Android 13 이상 알림 권한이 없을 때 앱이 종료되지 않고 알림 표시만 생략되는지 확인했다.
+- 재부팅 후 알림 복구는 과제 범위에서 제외했다.
+
+### 빌드 및 실행 테스트 결과
+- `./gradlew.bat assembleDebug` 실행 결과 `BUILD SUCCESSFUL`을 확인했다.
+- 컴파일 기준으로 BroadcastReceiver 등록, NotificationChannel 생성, AlarmManager 예약/취소 코드가 정상 빌드됨을 확인했다.

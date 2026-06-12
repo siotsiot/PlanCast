@@ -21,6 +21,7 @@ import androidx.core.view.WindowInsetsCompat;
 import com.sch.plancast.R;
 import com.sch.plancast.data.local.ScheduleEntity;
 import com.sch.plancast.data.repository.ScheduleRepository;
+import com.sch.plancast.notification.AlarmScheduler;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -36,6 +37,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
     private static final int NEW_SCHEDULE_ID = -1;
 
     private ScheduleRepository scheduleRepository;
+    private AlarmScheduler alarmScheduler;
     private ScheduleEntity editingSchedule;
     private EditText titleEditText;
     private EditText memoEditText;
@@ -61,6 +63,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
         });
 
         scheduleRepository = new ScheduleRepository(this);
+        alarmScheduler = new AlarmScheduler();
         scheduleId = getIntent().getIntExtra(EXTRA_SCHEDULE_ID, NEW_SCHEDULE_ID);
         selectedDate = getIntent().getStringExtra(EXTRA_DATE);
         if (selectedDate == null || selectedDate.isEmpty()) {
@@ -197,6 +200,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
             @Override
             public void onSuccess(Void result) {
                 runOnUiThread(() -> {
+                    scheduleOutdoorNotificationIfNeeded(schedule);
                     Toast.makeText(ScheduleFormActivity.this, "일정이 저장되었습니다", Toast.LENGTH_SHORT).show();
                     setResult(RESULT_OK);
                     finish();
@@ -219,6 +223,8 @@ public class ScheduleFormActivity extends AppCompatActivity {
             @Override
             public void onSuccess(Void result) {
                 runOnUiThread(() -> {
+                    alarmScheduler.cancelNotification(ScheduleFormActivity.this, schedule.getId());
+                    scheduleOutdoorNotificationIfNeeded(schedule);
                     Toast.makeText(ScheduleFormActivity.this, "일정이 수정되었습니다", Toast.LENGTH_SHORT).show();
                     setResult(RESULT_OK);
                     finish();
@@ -255,6 +261,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
             @Override
             public void onSuccess(Void result) {
                 runOnUiThread(() -> {
+                    alarmScheduler.cancelNotification(ScheduleFormActivity.this, editingSchedule.getId());
                     Toast.makeText(ScheduleFormActivity.this, "일정이 삭제되었습니다", Toast.LENGTH_SHORT).show();
                     setResult(RESULT_OK);
                     finish();
@@ -270,6 +277,12 @@ public class ScheduleFormActivity extends AppCompatActivity {
                 ).show());
             }
         });
+    }
+
+    private void scheduleOutdoorNotificationIfNeeded(ScheduleEntity schedule) {
+        if (ScheduleEntity.ACTIVITY_TYPE_OUTDOOR.equals(schedule.getActivityType())) {
+            alarmScheduler.scheduleNotification(this, schedule);
+        }
     }
 
     private void showDatePicker() {

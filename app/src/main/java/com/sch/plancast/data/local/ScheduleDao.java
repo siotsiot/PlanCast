@@ -12,7 +12,7 @@ import java.util.List;
 public interface ScheduleDao {
 
     @Insert
-    void insert(ScheduleEntity schedule);
+    long insert(ScheduleEntity schedule);
 
     @Update
     void update(ScheduleEntity schedule);

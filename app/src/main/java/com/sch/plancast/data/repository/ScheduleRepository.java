@@ -26,11 +26,11 @@ public class ScheduleRepository {
     }
 
     public void insert(ScheduleEntity schedule) {
-        executeWrite(() -> scheduleDao.insert(schedule), null);
+        executeInsert(schedule, null);
     }
 
     public void insert(ScheduleEntity schedule, RepositoryCallback<Void> callback) {
-        executeWrite(() -> scheduleDao.insert(schedule), callback);
+        executeInsert(schedule, callback);
     }
 
     public void update(ScheduleEntity schedule) {
@@ -63,6 +63,18 @@ public class ScheduleRepository {
 
     public void shutdown() {
         executorService.shutdown();
+    }
+
+    private void executeInsert(ScheduleEntity schedule, RepositoryCallback<Void> callback) {
+        executorService.execute(() -> {
+            try {
+                long insertedId = scheduleDao.insert(schedule);
+                schedule.setId((int) insertedId);
+                postSuccess(callback, null);
+            } catch (Exception exception) {
+                postError(callback, exception);
+            }
+        });
     }
 
     private void executeWrite(DatabaseWrite write, RepositoryCallback<Void> callback) {

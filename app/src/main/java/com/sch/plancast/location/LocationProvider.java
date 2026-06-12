@@ -27,7 +27,7 @@ public class LocationProvider {
         }
 
         if (!hasLocationPermission()) {
-            callback.onLocationError("위치 권한이 없어 날씨 기능을 사용할 수 없습니다");
+            callback.onLocationError("위치 권한이 없어 현재 위치와 날씨를 확인할 수 없습니다.");
             return;
         }
 
@@ -37,16 +37,16 @@ public class LocationProvider {
                     .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cancellationTokenSource.getToken())
                     .addOnSuccessListener(location -> {
                         if (location == null) {
-                            callback.onLocationError("현재 위치를 확인할 수 없습니다");
+                            callback.onLocationError("현재 위치를 찾지 못했습니다. 기기의 위치 서비스가 켜져 있는지 확인하세요.");
                             return;
                         }
                         callback.onLocationReceived(location.getLatitude(), location.getLongitude());
                     })
                     .addOnFailureListener(exception -> callback.onLocationError(
-                            "현재 위치 조회 실패: " + getErrorMessage(exception)
+                            "현재 위치를 가져오지 못했습니다. 위치 서비스 상태를 확인한 뒤 다시 시도하세요."
                     ));
         } catch (SecurityException exception) {
-            callback.onLocationError("위치 권한이 없어 날씨 기능을 사용할 수 없습니다");
+            callback.onLocationError("위치 권한이 없어 현재 위치와 날씨를 확인할 수 없습니다.");
         }
     }
 
@@ -55,13 +55,6 @@ public class LocationProvider {
                 == PackageManager.PERMISSION_GRANTED
                 || ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED;
-    }
-
-    private String getErrorMessage(Exception exception) {
-        if (exception.getMessage() == null || exception.getMessage().isEmpty()) {
-            return "알 수 없는 오류";
-        }
-        return exception.getMessage();
     }
 
     public interface LocationCallback {

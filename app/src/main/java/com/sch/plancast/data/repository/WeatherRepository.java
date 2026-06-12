@@ -31,7 +31,7 @@ public class WeatherRepository {
 
         String apiKey = BuildConfig.OPEN_WEATHER_MAP_API_KEY;
         if (apiKey == null || apiKey.trim().isEmpty()) {
-            callback.onError("OpenWeatherMap API Key가 설정되지 않았습니다");
+            callback.onError("날씨 API 키가 설정되지 않았습니다. local.properties의 OPEN_WEATHER_MAP_API_KEY를 확인하세요.");
             return;
         }
 
@@ -45,19 +45,19 @@ public class WeatherRepository {
             @Override
             public void onResponse(@NonNull Call<WeatherResponse> call, @NonNull Response<WeatherResponse> response) {
                 if (!response.isSuccessful()) {
-                    callback.onError("날씨 정보를 불러오지 못했습니다: HTTP " + response.code());
+                    callback.onError(getHttpErrorMessage(response.code()));
                     return;
                 }
 
                 WeatherResponse weatherResponse = response.body();
                 if (weatherResponse == null) {
-                    callback.onError("날씨 응답이 비어 있습니다");
+                    callback.onError("날씨 서버 응답이 비어 있습니다. 잠시 후 다시 시도하세요.");
                     return;
                 }
 
                 WeatherInfo weatherInfo = WeatherInfo.from(weatherResponse);
                 if (!weatherInfo.hasRequiredValues()) {
-                    callback.onError("날씨 응답에 필요한 정보가 없습니다");
+                    callback.onError("날씨 응답에 필요한 기온 또는 풍속 정보가 없습니다.");
                     return;
                 }
 
@@ -66,16 +66,23 @@ public class WeatherRepository {
 
             @Override
             public void onFailure(@NonNull Call<WeatherResponse> call, @NonNull Throwable throwable) {
-                callback.onError("날씨 조회 실패: " + getErrorMessage(throwable));
+                callback.onError(getNetworkErrorMessage(throwable));
             }
         });
     }
 
-    private String getErrorMessage(Throwable throwable) {
-        if (throwable.getMessage() == null || throwable.getMessage().isEmpty()) {
-            return "네트워크 오류";
+    private String getHttpErrorMessage(int code) {
+        if (code == 401) {
+            return "날씨 API 인증에 실패했습니다. API Key 활성화 상태를 확인하세요. (HTTP 401)";
         }
-        return throwable.getMessage();
+        return "날씨 서버 응답을 받지 못했습니다. 잠시 후 다시 시도하세요. (HTTP " + code + ")";
+    }
+
+    private String getNetworkErrorMessage(Throwable throwable) {
+        if (throwable.getMessage() == null || throwable.getMessage().isEmpty()) {
+            return "네트워크 연결을 확인한 뒤 다시 시도하세요.";
+        }
+        return "네트워크 연결을 확인한 뒤 다시 시도하세요. (" + throwable.getMessage() + ")";
     }
 
     public interface WeatherCallback {

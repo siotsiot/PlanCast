@@ -1,7 +1,10 @@
 package com.sch.plancast.ui.schedule;
 
+import android.Manifest;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -14,6 +17,7 @@ import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -56,9 +60,19 @@ public class ScheduleFormActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_schedule_form);
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.scheduleFormRoot), (v, insets) -> {
+        View scheduleFormRoot = findViewById(R.id.scheduleFormRoot);
+        int initialLeftPadding = scheduleFormRoot.getPaddingLeft();
+        int initialTopPadding = scheduleFormRoot.getPaddingTop();
+        int initialRightPadding = scheduleFormRoot.getPaddingRight();
+        int initialBottomPadding = scheduleFormRoot.getPaddingBottom();
+        ViewCompat.setOnApplyWindowInsetsListener(scheduleFormRoot, (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            v.setPadding(
+                    initialLeftPadding + systemBars.left,
+                    initialTopPadding + systemBars.top,
+                    initialRightPadding + systemBars.right,
+                    initialBottomPadding + systemBars.bottom
+            );
             return insets;
         });
 
@@ -282,7 +296,23 @@ public class ScheduleFormActivity extends AppCompatActivity {
     private void scheduleOutdoorNotificationIfNeeded(ScheduleEntity schedule) {
         if (ScheduleEntity.ACTIVITY_TYPE_OUTDOOR.equals(schedule.getActivityType())) {
             alarmScheduler.scheduleNotification(this, schedule);
+            if (!hasNotificationPermission()) {
+                Toast.makeText(
+                        this,
+                        "알림 권한이 없어 예약 알림이 표시되지 않을 수 있습니다.",
+                        Toast.LENGTH_LONG
+                ).show();
+            }
         }
+    }
+
+    private boolean hasNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return true;
+        }
+
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED;
     }
 
     private void showDatePicker() {

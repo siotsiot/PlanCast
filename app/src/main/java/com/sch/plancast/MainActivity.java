@@ -3,6 +3,7 @@ package com.sch.plancast;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
@@ -36,6 +37,7 @@ import java.util.Locale;
 public class MainActivity extends AppCompatActivity {
 
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
+    private static final int NOTIFICATION_PERMISSION_REQUEST_CODE = 1002;
 
     private ScheduleRepository scheduleRepository;
     private WeatherRepository weatherRepository;
@@ -55,9 +57,19 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+        View mainView = findViewById(R.id.main);
+        int initialLeftPadding = mainView.getPaddingLeft();
+        int initialTopPadding = mainView.getPaddingTop();
+        int initialRightPadding = mainView.getPaddingRight();
+        int initialBottomPadding = mainView.getPaddingBottom();
+        ViewCompat.setOnApplyWindowInsetsListener(mainView, (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            v.setPadding(
+                    initialLeftPadding + systemBars.left,
+                    initialTopPadding + systemBars.top,
+                    initialRightPadding + systemBars.right,
+                    initialBottomPadding + systemBars.bottom
+            );
             return insets;
         });
 
@@ -119,6 +131,9 @@ public class MainActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode != LOCATION_PERMISSION_REQUEST_CODE) {
+            if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) {
+                handleNotificationPermissionResult(grantResults);
+            }
             return;
         }
 
@@ -127,15 +142,17 @@ public class MainActivity extends AppCompatActivity {
         } else {
             showLocationPermissionDeniedMessage();
         }
+        requestNotificationPermissionIfNeeded();
     }
 
     private void checkLocationPermissionAndLoadLocation() {
         if (hasLocationPermission()) {
             loadCurrentLocation();
+            requestNotificationPermissionIfNeeded();
             return;
         }
 
-        locationStatusTextView.setText("위치 권한을 요청하는 중입니다");
+        locationStatusTextView.setText("위치 권한을 요청하고 있습니다.");
         ActivityCompat.requestPermissions(
                 this,
                 new String[]{
@@ -166,9 +183,39 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
+    private void requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+
+        ActivityCompat.requestPermissions(
+                this,
+                new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                NOTIFICATION_PERMISSION_REQUEST_CODE
+        );
+    }
+
+    private void handleNotificationPermissionResult(int[] grantResults) {
+        if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "야외 일정 알림을 받을 수 있습니다.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Toast.makeText(
+                this,
+                "알림 권한이 없어 야외 일정 알림이 표시되지 않을 수 있습니다.",
+                Toast.LENGTH_LONG
+        ).show();
+    }
+
     private void loadCurrentLocation() {
-        locationStatusTextView.setText("현재 위치를 확인하는 중입니다");
-        weatherInfoTextView.setText("날씨 정보: 현재 위치 확인 후 조회합니다");
+        locationStatusTextView.setText("현재 위치를 확인하고 있습니다.");
+        weatherInfoTextView.setText("현재 위치를 확인한 뒤 날씨를 불러옵니다.");
         showWeatherAdviceUnavailable();
         locationProvider.getCurrentLocation(new LocationProvider.LocationCallback() {
             @Override
@@ -176,7 +223,7 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     locationStatusTextView.setText(String.format(
                             Locale.US,
-                            "현재 위치: %.4f, %.4f",
+                            "현재 위치 %.4f, %.4f",
                             latitude,
                             longitude
                     ));
@@ -188,7 +235,7 @@ public class MainActivity extends AppCompatActivity {
             public void onLocationError(String errorMessage) {
                 runOnUiThread(() -> {
                     locationStatusTextView.setText(errorMessage);
-                    weatherInfoTextView.setText("날씨 정보: 위치를 확인할 수 없어 조회하지 않았습니다");
+                    weatherInfoTextView.setText("위치를 확인할 수 없어 날씨를 불러오지 않았습니다.");
                     showWeatherAdviceUnavailable();
                     Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
                 });
@@ -197,7 +244,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadCurrentWeather(double latitude, double longitude) {
-        weatherInfoTextView.setText("현재 날씨를 불러오는 중입니다");
+        weatherInfoTextView.setText("현재 날씨를 불러오고 있습니다.");
         weatherRepository.getCurrentWeather(latitude, longitude, new WeatherRepository.WeatherCallback() {
             @Override
             public void onSuccess(WeatherRepository.WeatherInfo weatherInfo) {
@@ -230,14 +277,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showWeatherAdviceUnavailable() {
-        weatherRiskTextView.setText("위험 안내: 날씨 정보를 불러온 뒤 추천을 확인할 수 있습니다.");
-        weatherRecommendationTextView.setText("추천 준비물: 날씨 정보를 불러온 뒤 확인할 수 있습니다.");
+        weatherRiskTextView.setText("위험 안내\n날씨 정보를 불러온 뒤 확인할 수 있습니다.");
+        weatherRecommendationTextView.setText("추천 준비물\n날씨 정보를 불러온 뒤 확인할 수 있습니다.");
     }
 
     private void showLocationPermissionDeniedMessage() {
-        String message = "위치 권한이 없어 날씨 기능을 사용할 수 없습니다";
+        String message = "위치 권한이 거부되어 현재 위치 기반 날씨를 사용할 수 없습니다.";
         locationStatusTextView.setText(message);
-        weatherInfoTextView.setText("날씨 정보: 위치 권한이 필요합니다");
+        weatherInfoTextView.setText("위치 권한을 허용하면 현재 위치 기반 날씨를 확인할 수 있습니다.");
         showWeatherAdviceUnavailable();
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
@@ -268,7 +315,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateSelectedDateLabel() {
-        selectedDateTextView.setText("선택 날짜: " + selectedDate);
+        selectedDateTextView.setText(selectedDate + " 일정");
     }
 
     private String formatDate(long timeMillis) {

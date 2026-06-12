@@ -291,3 +291,48 @@
 ### 빌드 및 실행 테스트 결과
 - `./gradlew.bat assembleDebug` 실행 결과 `BUILD SUCCESSFUL`을 확인했다.
 - 컴파일 기준으로 BroadcastReceiver 등록, NotificationChannel 생성, AlarmManager 예약/취소 코드가 정상 빌드됨을 확인했다.
+
+## 8. 최종 마무리 작업
+
+### 사용한 AI 도구
+- Codex
+
+### AI에게 요청한 내용
+- 새로운 큰 기능을 추가하지 않고 제출 전 완성도를 높이도록 요청했다.
+- Android 13 이상에서 `POST_NOTIFICATIONS` 런타임 권한 요청을 보강하도록 요청했다.
+- MainActivity의 위치, 날씨, 위험 메시지, 추천 준비물 영역을 더 보기 좋게 정리하도록 요청했다.
+- 위치 권한 거부, 위치 조회 실패, 날씨 API 실패, API Key 누락, HTTP 401, 네트워크 실패 상황의 안내 문구를 사용자 친화적으로 다듬도록 요청했다.
+
+### AI가 생성하거나 수정한 코드
+- `app/src/main/java/com/sch/plancast/MainActivity.java`
+  - Android 13 이상에서 알림 권한을 요청하도록 구현했다.
+  - 알림 권한이 거부되어도 앱이 종료되지 않고 제한 안내 메시지를 표시하도록 처리했다.
+  - 위치/날씨/위험 안내/추천 준비물 초기 문구와 실패 문구를 정리했다.
+  - Edge-to-edge 처리 시 XML padding이 사라지지 않도록 기존 padding과 시스템 바 padding을 합산하도록 수정했다.
+- `app/src/main/java/com/sch/plancast/ui/schedule/ScheduleFormActivity.java`
+  - 야외 일정 저장 시 알림 권한이 없으면 알림이 표시되지 않을 수 있다는 안내를 보여주도록 보강했다.
+  - 폼 화면도 Edge-to-edge 처리 시 기존 padding을 보존하도록 수정했다.
+- `app/src/main/java/com/sch/plancast/location/LocationProvider.java`
+  - 위치 권한 없음, 위치 조회 실패, 위치 서비스 문제 상황의 오류 메시지를 더 이해하기 쉽게 정리했다.
+- `app/src/main/java/com/sch/plancast/data/repository/WeatherRepository.java`
+  - API Key 누락, HTTP 401, 기타 HTTP 오류, 네트워크 실패, null 응답 상황의 메시지를 구분해 정리했다.
+- `app/src/main/java/com/sch/plancast/domain/WeatherAdviceResult.java`
+  - 위험 안내와 추천 준비물 표시 문구를 줄바꿈 형태로 읽기 쉽게 조정했다.
+- `app/src/main/res/layout/activity_main.xml`
+  - 위치, 날씨, 위험 안내, 추천 준비물 영역의 margin, padding, minHeight, 기본 문구를 정리했다.
+  - 일정 목록과 날씨 영역 사이의 간격을 조정했다.
+
+### 팀원이 검토한 내용
+- 기존 일정 CRUD, 위치 조회, 날씨 API, WeatherAdvisor, 알림 기능이 제거되지 않았는지 확인했다.
+- 알림 권한이 거부되어도 앱이 종료되지 않고 일정 저장 흐름이 유지되는지 확인했다.
+- API Key 활성화 전 HTTP 401 상황에서도 사용자에게 이해 가능한 메시지가 표시되는지 확인했다.
+- 메인 화면 정보 영역의 간격과 문구가 제출용 앱 화면으로 자연스러운지 검토했다.
+
+### 직접 수정하거나 확인한 내용
+- Java/XML 기반이 유지되었고 Kotlin/Compose 코드가 추가되지 않았는지 확인했다.
+- 새로운 외부 API나 라이브러리가 추가되지 않았는지 확인했다.
+- Android 13 이상 알림 권한 요청과 권한 거부 안내가 기존 알림 예약 구조와 충돌하지 않는지 확인했다.
+
+### 빌드 및 실행 테스트 결과
+- `./gradlew.bat assembleDebug` 실행 결과 `BUILD SUCCESSFUL`을 확인했다.
+- 최종 마무리 변경 후에도 컴파일 기준으로 기존 기능들이 유지됨을 확인했다.

@@ -25,10 +25,10 @@ public class WeatherAdviceResult {
     }
 
     public String getRiskDisplayText() {
-        return "위험 안내: " + riskMessage;
+        return "위험 안내\n" + riskMessage;
     }
 
     public String getRecommendationDisplayText() {
-        return "추천 준비물: " + recommendedItems;
+        return "추천 준비물\n" + recommendedItems;
     }
 }

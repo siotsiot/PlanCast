@@ -3,6 +3,8 @@ package com.sch.plancast;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
@@ -29,6 +31,7 @@ import com.sch.plancast.location.LocationProvider;
 import com.sch.plancast.ui.schedule.ScheduleAdapter;
 import com.sch.plancast.ui.schedule.ScheduleFormActivity;
 
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -45,6 +48,7 @@ public class MainActivity extends AppCompatActivity {
     private ScheduleAdapter scheduleAdapter;
     private LocationProvider locationProvider;
     private TextView locationStatusTextView;
+    private TextView tempTextView;
     private TextView weatherInfoTextView;
     private TextView weatherRiskTextView;
     private TextView weatherRecommendationTextView;
@@ -80,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
         selectedDate = formatDate(System.currentTimeMillis());
 
         locationStatusTextView = findViewById(R.id.locationStatusTextView);
+        tempTextView = findViewById(R.id.tempTextView);
         weatherInfoTextView = findViewById(R.id.weatherInfoTextView);
         weatherRiskTextView = findViewById(R.id.weatherRiskTextView);
         weatherRecommendationTextView = findViewById(R.id.weatherRecommendationTextView);
@@ -214,27 +219,25 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadCurrentLocation() {
-        locationStatusTextView.setText("현재 위치를 확인하고 있습니다.");
+        locationStatusTextView.setText("📍 위치 확인 중...");
         weatherInfoTextView.setText("현재 위치를 확인한 뒤 날씨를 불러옵니다.");
         showWeatherAdviceUnavailable();
         locationProvider.getCurrentLocation(new LocationProvider.LocationCallback() {
             @Override
             public void onLocationReceived(double latitude, double longitude) {
-                runOnUiThread(() -> {
-                    locationStatusTextView.setText(String.format(
-                            Locale.US,
-                            "현재 위치 %.4f, %.4f",
-                            latitude,
-                            longitude
-                    ));
-                    loadCurrentWeather(latitude, longitude);
-                });
+                new Thread(() -> {
+                    String address = getAddressFromLocation(latitude, longitude);
+                    runOnUiThread(() -> {
+                        locationStatusTextView.setText(address);
+                        loadCurrentWeather(latitude, longitude);
+                    });
+                }).start();
             }
 
             @Override
             public void onLocationError(String errorMessage) {
                 runOnUiThread(() -> {
-                    locationStatusTextView.setText(errorMessage);
+                    locationStatusTextView.setText("📍 위치 확인 실패");
                     weatherInfoTextView.setText("위치를 확인할 수 없어 날씨를 불러오지 않았습니다.");
                     showWeatherAdviceUnavailable();
                     Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
@@ -243,13 +246,44 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private String getAddressFromLocation(double latitude, double longitude) {
+        Geocoder geocoder = new Geocoder(this, Locale.KOREA);
+        try {
+            List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
+            if (addresses != null && !addresses.isEmpty()) {
+                Address address = addresses.get(0);
+                StringBuilder sb = new StringBuilder("📍 ");
+                if (address.getAdminArea() != null) {
+                    sb.append(address.getAdminArea()).append(" ");
+                }
+                if (address.getLocality() != null) {
+                    sb.append(address.getLocality());
+                } else if (address.getSubLocality() != null) {
+                    sb.append(address.getSubLocality());
+                }
+                return sb.toString().trim();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return "📍 위치 확인 중...";
+    }
+
     private void loadCurrentWeather(double latitude, double longitude) {
         weatherInfoTextView.setText("현재 날씨를 불러오고 있습니다.");
         weatherRepository.getCurrentWeather(latitude, longitude, new WeatherRepository.WeatherCallback() {
             @Override
             public void onSuccess(WeatherRepository.WeatherInfo weatherInfo) {
                 runOnUiThread(() -> {
-                    weatherInfoTextView.setText(weatherInfo.toDisplayText());
+                    if (tempTextView != null) {
+                        tempTextView.setText(String.format(Locale.US, "%.1f°", weatherInfo.getCurrentTemperature()));
+                    }
+                    String infoText = String.format(Locale.US, "%s\n🌬️ 풍속 %.1fm/s  |  🌡️ %.1f° / %.1f°",
+                            weatherInfo.getWeatherStatus(),
+                            weatherInfo.getWindSpeed(),
+                            weatherInfo.getMinTemperature(),
+                            weatherInfo.getMaxTemperature());
+                    weatherInfoTextView.setText(infoText);
                     updateWeatherAdvice(weatherInfo);
                 });
             }
@@ -257,6 +291,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onError(String errorMessage) {
                 runOnUiThread(() -> {
+                    if (tempTextView != null) {
+                        tempTextView.setText("--°");
+                    }
                     weatherInfoTextView.setText(errorMessage);
                     showWeatherAdviceUnavailable();
                     Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
@@ -272,19 +309,22 @@ public class MainActivity extends AppCompatActivity {
                 weatherInfo.getCurrentTemperature(),
                 weatherInfo.getWindSpeed()
         );
-        weatherRiskTextView.setText(adviceResult.getRiskDisplayText());
-        weatherRecommendationTextView.setText(adviceResult.getRecommendationDisplayText());
+        weatherRiskTextView.setText(adviceResult.getRiskMessage());
+        weatherRecommendationTextView.setText(adviceResult.getRecommendedItems());
     }
 
     private void showWeatherAdviceUnavailable() {
-        weatherRiskTextView.setText("위험 안내\n날씨 정보를 불러온 뒤 확인할 수 있습니다.");
-        weatherRecommendationTextView.setText("추천 준비물\n날씨 정보를 불러온 뒤 확인할 수 있습니다.");
+        weatherRiskTextView.setText("날씨 정보를 불러온 뒤 확인할 수 있습니다.");
+        weatherRecommendationTextView.setText("날씨 정보를 불러온 뒤 확인할 수 있습니다.");
     }
 
     private void showLocationPermissionDeniedMessage() {
         String message = "위치 권한이 거부되어 현재 위치 기반 날씨를 사용할 수 없습니다.";
         locationStatusTextView.setText(message);
-        weatherInfoTextView.setText("위치 권한을 허용하면 현재 위치 기반 날씨를 확인할 수 있습니다.");
+        if (tempTextView != null) {
+            tempTextView.setText("--°");
+        }
+        weatherInfoTextView.setText("위치 권한을 허용하면 날씨 정보를 확인할 수 있습니다.");
         showWeatherAdviceUnavailable();
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }

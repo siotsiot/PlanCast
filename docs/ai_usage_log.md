@@ -432,3 +432,47 @@
 ### 빌드 결과
 - `./gradlew.bat assembleDebug` 실행 결과 `BUILD SUCCESSFUL`을 확인했다.
 - 기존 일정 CRUD, 현재 위치 조회, Current Weather API, Forecast API, WeatherAdvisor, 알림 기능을 유지한 상태로 Room DB 야외 일정 조회 기능만 추가했다.
+
+## 11. 야외 일정과 Forecast 예보 데이터 매칭 로직 추가
+
+### 사용한 AI 도구
+- Codex
+
+### Forecast 예보와 일정 시간을 매칭하는 기능을 추가한 이유
+- Forecast API는 3시간 간격 예보 목록을 제공하므로, 야외 일정 시간과 가장 가까운 예보를 찾아야 일정별 위험 날씨를 판단할 수 있다.
+- 현재 날씨 기준 판단만으로는 미래 일정의 날씨 위험을 설명하기 어렵기 때문에, 일정 시간 기준의 예보 매칭 helper를 별도 도메인 로직으로 분리했다.
+- 이번 단계에서는 알림을 띄우지 않고, 추후 백그라운드 알림이나 매일 8시 점검 기능에서 사용할 수 있는 순수 결과 리스트만 반환하도록 구현했다.
+
+### 3시간 단위 예보 중 가장 가까운 시간을 선택한 이유
+- OpenWeatherMap 5일 예보는 3시간 단위로 제공되므로 일정 시간과 정확히 같은 예보 시간이 항상 존재하지 않는다.
+- 따라서 일정 시간과 Forecast의 `dt_txt` 시간 차이가 가장 작은 예보를 선택하는 방식이 필요하다.
+- 단, 시간 차이가 너무 큰 예보를 사용하면 일정 시점의 날씨라고 보기 어려우므로 ±3시간 이내 예보만 유효한 매칭으로 처리했다.
+
+### AI에게 요청한 내용
+- `ForecastScheduleMatcher`를 생성해 야외 일정 목록과 Forecast 예보 목록을 매칭하도록 요청했다.
+- 일정 날짜/시간(`yyyy-MM-dd`, `HH:mm`)과 Forecast 시간(`yyyy-MM-dd HH:mm:ss`)을 안전하게 파싱하도록 요청했다.
+- 매칭되는 예보가 없거나 날짜 파싱에 실패하면 해당 항목을 건너뛰도록 요청했다.
+- 기존 `WeatherAdvisor`를 재사용해 비, 눈, 폭염, 한파, 강풍 위험 판단 기준을 유지하도록 요청했다.
+- UI, 백그라운드 알림, AlarmReceiver, 매일 8시 알람 예약은 아직 구현하지 않도록 요청했다.
+
+### AI가 생성하거나 수정한 코드
+- `app/src/main/java/com/sch/plancast/domain/ForecastScheduleMatcher.java`
+  - 야외 일정과 Forecast 예보 항목을 시간 차이 기준으로 매칭하는 helper를 생성했다.
+  - 일정 시간과 예보 시간이 ±3시간 이내일 때만 유효한 매칭으로 처리했다.
+  - `SimpleDateFormat`을 사용해 Android API 호환성을 유지했다.
+  - 파싱 실패나 null 값이 있어도 앱이 종료되지 않도록 해당 항목을 건너뛰게 처리했다.
+  - 매칭된 예보를 `WeatherAdvisor`에 전달해 위험 일정만 결과 리스트로 반환했다.
+- `app/src/main/java/com/sch/plancast/domain/ForecastScheduleRiskResult.java`
+  - 일정, 예보 시간, 날씨 상태, 설명, 기온, 풍속, 위험 여부, 위험 메시지, 추천 준비물을 담는 결과 클래스를 생성했다.
+  - 외부에서 결과를 읽을 수 있도록 getter를 제공했다.
+
+### 팀원이 검토해야 할 내용
+- 일정 날짜/시간과 Forecast `dt_txt` 파싱 형식이 실제 저장/응답 형식과 일치하는지 확인한다.
+- ±3시간 이내 예보만 매칭하는 기준이 발표 시 설명하기 적절한지 확인한다.
+- `WeatherAdvisor` 재사용으로 현재 날씨 판단 기준과 Forecast 기반 판단 기준이 일관되는지 확인한다.
+- null 값, 파싱 실패, 비어 있는 Forecast 목록에서 앱이 종료되지 않는지 확인한다.
+- 이번 단계에서 UI 변경이나 알림 예약 로직이 추가되지 않았는지 확인한다.
+
+### 빌드 결과
+- `./gradlew.bat assembleDebug` 실행 결과 `BUILD SUCCESSFUL`을 확인했다.
+- 기존 일정 CRUD, 현재 위치 조회, Current Weather API, Forecast API, WeatherAdvisor, 기존 알림 기능을 유지한 상태로 Forecast-일정 매칭 도메인 로직만 추가했다.

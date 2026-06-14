@@ -3,16 +3,24 @@ package com.sch.plancast.data.repository;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
 import com.sch.plancast.data.local.AppDatabase;
 import com.sch.plancast.data.local.ScheduleDao;
 import com.sch.plancast.data.local.ScheduleEntity;
 
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class ScheduleRepository {
+
+    private static final String TAG = "ScheduleRepository";
+    private static final String DATE_PATTERN = "yyyy-MM-dd";
+    private static final int OUTDOOR_LOOKAHEAD_DAYS = 5;
 
     private final ScheduleDao scheduleDao;
     private final ExecutorService executorService;
@@ -61,8 +69,39 @@ public class ScheduleRepository {
         executeRead(() -> scheduleDao.getById(id), callback);
     }
 
+    public void getOutdoorSchedulesWithinFiveDays(RepositoryCallback<List<ScheduleEntity>> callback) {
+        String startDate = getTodayDateString();
+        String endDate = getDateAfterDaysString(OUTDOOR_LOOKAHEAD_DAYS);
+
+        // Forecast API와 매칭하기 전 단계이므로, 여기서는 Room DB에서 "조회 대상 일정"만 분리합니다.
+        // 실제 예보 시간과 일정 시간 비교는 다음 단계에서 Repository 또는 별도 도메인 계층으로 연결하면 됩니다.
+        executeRead(() -> {
+            List<ScheduleEntity> schedules = scheduleDao.getOutdoorSchedulesBetween(
+                    startDate,
+                    endDate,
+                    ScheduleEntity.ACTIVITY_TYPE_OUTDOOR
+            );
+            Log.d(TAG, "Outdoor schedules within five days: " + schedules.size());
+            return schedules;
+        }, callback);
+    }
+
     public void shutdown() {
         executorService.shutdown();
+    }
+
+    private String getTodayDateString() {
+        return formatDate(Calendar.getInstance());
+    }
+
+    private String getDateAfterDaysString(int days) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(Calendar.DAY_OF_MONTH, days);
+        return formatDate(calendar);
+    }
+
+    private String formatDate(Calendar calendar) {
+        return new SimpleDateFormat(DATE_PATTERN, Locale.US).format(calendar.getTime());
     }
 
     private void executeInsert(ScheduleEntity schedule, RepositoryCallback<Void> callback) {

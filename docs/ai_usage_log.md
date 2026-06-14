@@ -388,3 +388,47 @@
 ### 빌드 결과
 - `./gradlew.bat assembleDebug` 실행 결과 `BUILD SUCCESSFUL`을 확인했다.
 - 기존 일정 CRUD, 현재 위치 조회, 현재 날씨 API, WeatherAdvisor, 알림 기능을 제거하지 않고 Forecast API 호출 기반만 추가했다.
+
+## 10. 향후 5일 이내 야외 일정 조회 기능 추가
+
+### 사용한 AI 도구
+- Codex
+
+### 향후 5일 이내 야외 일정 조회 기능을 추가한 이유
+- Forecast API는 5일 예보를 제공하므로, 예보와 연결할 일정도 같은 기간 안의 일정으로 먼저 좁혀야 한다.
+- 모든 일정을 대상으로 예보를 비교하면 불필요한 데이터 처리와 조건 분기가 늘어나므로, 오늘부터 5일 뒤까지의 야외 일정만 조회하는 기능을 분리했다.
+- 야외 일정만 조회하면 이후 단계에서 비, 눈, 폭염, 한파, 강풍 같은 위험 요소를 야외 활동에 맞춰 판단하기 쉬워진다.
+
+### Forecast API와 연결하기 전에 일정 조회 기능을 먼저 분리한 이유
+- 네트워크 응답 처리와 Room DB 조회 로직을 한 번에 섞으면 오류 원인을 추적하기 어렵다.
+- 이번 단계에서는 Room DB에서 “예보 판단 대상 일정”을 안정적으로 가져오는 것까지만 구현했다.
+- 다음 단계에서는 이 메서드의 결과와 Forecast API의 `dt` 또는 `dt_txt` 값을 비교해 일정 시간에 가까운 예보를 선택할 수 있다.
+
+### AI에게 요청한 내용
+- `ScheduleDao`에 오늘부터 5일 뒤까지의 야외 일정만 조회하는 쿼리를 추가하도록 요청했다.
+- `ScheduleRepository`에 DAO 쿼리를 감싸는 `getOutdoorSchedulesWithinFiveDays` 메서드를 추가하도록 요청했다.
+- 날짜 문자열은 기존 프로젝트 형식인 `yyyy-MM-dd`로 계산하도록 요청했다.
+- 야외 일정 기준은 기존 `ScheduleEntity.ACTIVITY_TYPE_OUTDOOR` 값인 `"OUTDOOR"`를 사용하도록 요청했다.
+- Forecast API와 일정 시간 매칭, 백그라운드 알림, 매일 8시 알람 예약, MainActivity UI 변경은 하지 않도록 요청했다.
+
+### AI가 생성하거나 수정한 코드
+- `app/src/main/java/com/sch/plancast/data/local/ScheduleDao.java`
+  - `getOutdoorSchedulesBetween(String startDate, String endDate, String outdoorType)` 메서드를 추가했다.
+  - `date >= :startDate`, `date <= :endDate`, `activityType = :outdoorType` 조건을 적용했다.
+  - 날짜 오름차순, 시간 오름차순 정렬을 유지했다.
+- `app/src/main/java/com/sch/plancast/data/repository/ScheduleRepository.java`
+  - `getOutdoorSchedulesWithinFiveDays(RepositoryCallback<List<ScheduleEntity>> callback)` 메서드를 추가했다.
+  - Java `Calendar`와 `SimpleDateFormat`으로 오늘 날짜와 5일 뒤 날짜를 `yyyy-MM-dd` 형식으로 계산했다.
+  - 기존 Repository 방식과 동일하게 `ExecutorService` 백그라운드 스레드에서 DB 조회를 실행했다.
+  - Logcat에서 조회된 야외 일정 개수만 확인할 수 있도록 최소 로그를 추가했다.
+
+### 팀원이 검토해야 할 내용
+- 기존 `insert`, `update`, `delete`, `getAll`, `getByDate`, `getById` 메서드가 삭제되거나 변경되지 않았는지 확인한다.
+- `activityType` 비교 값이 `"야외"`가 아니라 기존 저장 값인 `"OUTDOOR"`인지 확인한다.
+- 날짜 범위가 오늘부터 5일 뒤까지 포함하는지 확인한다.
+- 이번 단계에서 Forecast API와 일정 시간을 매칭하는 로직이 추가되지 않았는지 확인한다.
+- MainActivity UI나 백그라운드 알림 예약 흐름이 변경되지 않았는지 확인한다.
+
+### 빌드 결과
+- `./gradlew.bat assembleDebug` 실행 결과 `BUILD SUCCESSFUL`을 확인했다.
+- 기존 일정 CRUD, 현재 위치 조회, Current Weather API, Forecast API, WeatherAdvisor, 알림 기능을 유지한 상태로 Room DB 야외 일정 조회 기능만 추가했다.

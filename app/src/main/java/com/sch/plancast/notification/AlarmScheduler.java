@@ -5,6 +5,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.util.Log;
 
 import com.sch.plancast.data.local.ScheduleEntity;
 
@@ -15,10 +16,13 @@ import java.util.Locale;
 
 public class AlarmScheduler {
 
+    private static final String TAG = "PlanCastWeatherCheck";
     private static final int NOTIFICATION_LEAD_MINUTES = 30;
     private static final int DAILY_WEATHER_CHECK_REQUEST_CODE = 8000;
-    private static final int DAILY_WEATHER_CHECK_HOUR = 20;
+    private static final int DAILY_WEATHER_CHECK_TEST_REQUEST_CODE = 8002;
+    private static final int DAILY_WEATHER_CHECK_HOUR = 8;
     private static final int DAILY_WEATHER_CHECK_MINUTE = 0;
+    private static final int DAILY_WEATHER_CHECK_TEST_DELAY_MINUTES = 1;
 
     public void scheduleNotification(Context context, ScheduleEntity schedule) {
         if (context == null || schedule == null || schedule.getId() <= 0) {
@@ -112,6 +116,52 @@ public class AlarmScheduler {
         );
     }
 
+    public void scheduleDailyWeatherCheckForTest(Context context) {
+        if (context == null) {
+            Log.w(TAG, "테스트 날씨 체크 알림 예약 실패: context가 null입니다.");
+            return;
+        }
+
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (alarmManager == null) {
+            Log.w(TAG, "테스트 날씨 체크 알림 예약 실패: AlarmManager를 가져오지 못했습니다.");
+            return;
+        }
+
+        PendingIntent pendingIntent = createDailyWeatherCheckPendingIntent(
+                context,
+                DAILY_WEATHER_CHECK_TEST_REQUEST_CODE
+        );
+
+        Calendar triggerTime = Calendar.getInstance();
+        triggerTime.add(Calendar.MINUTE, DAILY_WEATHER_CHECK_TEST_DELAY_MINUTES);
+
+        // 발표 시연 및 개발 검증용 1회성 알람입니다.
+        // 실제 매일 오전 8시 반복 알람과 requestCode를 분리해 서로 덮어쓰지 않도록 했습니다.
+        // Android 12 이상 exact alarm 권한 문제를 피하기 위해 setExactAndAllowWhileIdle은 사용하지 않습니다.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTime.getTimeInMillis(),
+                    pendingIntent
+            );
+        } else {
+            alarmManager.set(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTime.getTimeInMillis(),
+                    pendingIntent
+            );
+        }
+
+        Log.d(
+                TAG,
+                "테스트 날씨 체크 알림 예약 완료: requestCode="
+                        + DAILY_WEATHER_CHECK_TEST_REQUEST_CODE
+                        + ", triggerAtMillis="
+                        + triggerTime.getTimeInMillis()
+        );
+    }
+
     private PendingIntent createPendingIntent(Context context, ScheduleEntity schedule, int flag) {
         Intent intent = new Intent(context, PlanAlarmReceiver.class);
         intent.setAction(PlanAlarmReceiver.ACTION_SCHEDULE_ALARM);
@@ -130,12 +180,16 @@ public class AlarmScheduler {
     }
 
     private PendingIntent createDailyWeatherCheckPendingIntent(Context context) {
+        return createDailyWeatherCheckPendingIntent(context, DAILY_WEATHER_CHECK_REQUEST_CODE);
+    }
+
+    private PendingIntent createDailyWeatherCheckPendingIntent(Context context, int requestCode) {
         Intent intent = new Intent(context, DailyWeatherCheckReceiver.class);
         intent.setAction(DailyWeatherCheckReceiver.ACTION_DAILY_WEATHER_CHECK);
 
         return PendingIntent.getBroadcast(
                 context,
-                DAILY_WEATHER_CHECK_REQUEST_CODE,
+                requestCode,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | getImmutableFlag()
         );

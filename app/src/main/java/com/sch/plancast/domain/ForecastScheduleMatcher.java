@@ -10,15 +10,16 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class ForecastScheduleMatcher {
 
     private static final String TAG = "ForecastScheduleMatcher";
-    private static final String SCHEDULE_DATE_TIME_PATTERN = "yyyy-MM-dd HH:mm";
+    private static final String FORECAST_DATE_PATTERN = "yyyy-MM-dd";
     private static final String FORECAST_DATE_TIME_PATTERN = "yyyy-MM-dd HH:mm:ss";
-    private static final long MAX_MATCH_DIFF_MILLIS = 3L * 60L * 60L * 1000L;
 
     private final WeatherAdvisor weatherAdvisor;
 
@@ -36,27 +37,25 @@ public class ForecastScheduleMatcher {
         }
 
         List<ForecastResponse.ForecastItem> forecastItems = forecastResponse.getForecastItems();
+        if (forecastItems == null) {
+            forecastItems = Collections.emptyList();
+        }
         List<ForecastScheduleRiskResult> riskyResults = new ArrayList<>();
 
-        // 이번 단계에서는 알림을 띄우지 않고, 일정 시간과 가장 가까운 예보를 찾아 위험 결과만 반환합니다.
-        // Forecast API는 3시간 단위이므로, 일정 시간과 예보 시간의 차이가 3시간을 넘으면 신뢰도가 낮다고 보고 건너뜁니다.
+        // 발표용으로 이해하기 쉽게, 일정 시간과 가장 가까운 예보 1개만 보지 않습니다.
+        // 야외 일정이 있는 "날짜"의 3시간 단위 예보를 모두 검사하고,
+        // 그 날짜에 비/눈/뇌우/강풍/폭염/한파 중 하나라도 있으면 위험 일정으로 판단합니다.
         for (ScheduleEntity schedule : schedules) {
             if (!isOutdoorSchedule(schedule)) {
                 continue;
             }
 
-            Date scheduleDateTime = parseScheduleDateTime(schedule);
-            if (scheduleDateTime == null) {
+            if (isBlank(schedule.getDate())) {
                 continue;
             }
 
-            ForecastResponse.ForecastItem nearestForecast = findNearestForecast(scheduleDateTime, forecastItems);
-            if (nearestForecast == null) {
-                continue;
-            }
-
-            ForecastScheduleRiskResult result = createRiskResult(schedule, nearestForecast);
-            if (result.hasRisk()) {
+            ForecastScheduleRiskResult result = createDailyRiskResult(schedule, forecastItems);
+            if (result != null && result.hasRisk()) {
                 riskyResults.add(result);
             }
         }
@@ -65,7 +64,7 @@ public class ForecastScheduleMatcher {
                 TAG,
                 "Outdoor schedules: " + schedules.size()
                         + ", forecast items: " + forecastItems.size()
-                        + ", risky matches: " + riskyResults.size()
+                        + ", risky daily matches: " + riskyResults.size()
         );
         return riskyResults;
     }
@@ -75,81 +74,133 @@ public class ForecastScheduleMatcher {
                 && ScheduleEntity.ACTIVITY_TYPE_OUTDOOR.equals(schedule.getActivityType());
     }
 
-    private Date parseScheduleDateTime(ScheduleEntity schedule) {
-        if (isBlank(schedule.getDate()) || isBlank(schedule.getTime())) {
-            return null;
-        }
-
-        return parseDate(
-                schedule.getDate() + " " + schedule.getTime(),
-                SCHEDULE_DATE_TIME_PATTERN
-        );
-    }
-
-    private ForecastResponse.ForecastItem findNearestForecast(
-            Date scheduleDateTime,
+    private ForecastScheduleRiskResult createDailyRiskResult(
+            ScheduleEntity schedule,
             List<ForecastResponse.ForecastItem> forecastItems
     ) {
         if (forecastItems == null || forecastItems.isEmpty()) {
             return null;
         }
 
-        ForecastResponse.ForecastItem nearestForecast = null;
-        long nearestDiffMillis = Long.MAX_VALUE;
+        ForecastResponse.ForecastItem representativeForecast = null;
+        Set<String> riskMessages = new LinkedHashSet<>();
+        Set<String> recommendedItems = new LinkedHashSet<>();
 
         for (ForecastResponse.ForecastItem forecastItem : forecastItems) {
-            Date forecastDateTime = parseForecastDateTime(forecastItem);
-            if (forecastDateTime == null) {
+            if (!isSameScheduleDate(schedule.getDate(), forecastItem)) {
                 continue;
             }
 
-            long diffMillis = Math.abs(scheduleDateTime.getTime() - forecastDateTime.getTime());
-            if (diffMillis <= MAX_MATCH_DIFF_MILLIS && diffMillis < nearestDiffMillis) {
-                nearestDiffMillis = diffMillis;
-                nearestForecast = forecastItem;
+            // 같은 날짜에 속한 모든 예보를 WeatherAdvisor로 검사합니다.
+            // 여러 시간대에서 위험 요소가 발견되면 메시지와 준비물을 합치고, 중복 준비물은 제거합니다.
+            WeatherAdviceResult adviceResult = weatherAdvisor.advise(
+                    forecastItem.getWeatherMain(),
+                    forecastItem.getDescription(),
+                    forecastItem.getTemperature(),
+                    forecastItem.getWindSpeed()
+            );
+
+            if (adviceResult.hasRisk()) {
+                if (representativeForecast == null) {
+                    representativeForecast = forecastItem;
+                }
+                addRiskMessages(riskMessages, adviceResult.getRiskMessage());
+                addRecommendedItems(recommendedItems, adviceResult.getRecommendedItems());
             }
         }
 
-        return nearestForecast;
+        if (representativeForecast == null) {
+            return null;
+        }
+
+        return new ForecastScheduleRiskResult(
+                schedule,
+                representativeForecast.getDtTxt(),
+                representativeForecast.getWeatherMain(),
+                representativeForecast.getDescription(),
+                safeDouble(representativeForecast.getTemperature()),
+                safeDouble(representativeForecast.getWindSpeed()),
+                true,
+                joinLines(riskMessages),
+                joinComma(recommendedItems)
+        );
     }
 
-    private Date parseForecastDateTime(ForecastResponse.ForecastItem forecastItem) {
+    private boolean isSameScheduleDate(String scheduleDate, ForecastResponse.ForecastItem forecastItem) {
+        if (isBlank(scheduleDate)) {
+            return false;
+        }
+
+        String forecastDate = getForecastDate(forecastItem);
+        return scheduleDate.equals(forecastDate);
+    }
+
+    private String getForecastDate(ForecastResponse.ForecastItem forecastItem) {
         if (forecastItem == null || isBlank(forecastItem.getDtTxt())) {
             return null;
         }
 
-        return parseDate(forecastItem.getDtTxt(), FORECAST_DATE_TIME_PATTERN);
+        Date forecastDateTime = parseDate(forecastItem.getDtTxt(), FORECAST_DATE_TIME_PATTERN);
+        if (forecastDateTime == null) {
+            return null;
+        }
+
+        SimpleDateFormat dateFormat = new SimpleDateFormat(FORECAST_DATE_PATTERN, Locale.US);
+        return dateFormat.format(forecastDateTime);
     }
 
-    private ForecastScheduleRiskResult createRiskResult(
-            ScheduleEntity schedule,
-            ForecastResponse.ForecastItem forecastItem
-    ) {
-        String weatherMain = forecastItem.getWeatherMain();
-        String description = forecastItem.getDescription();
-        Double temperature = forecastItem.getTemperature();
-        Double windSpeed = forecastItem.getWindSpeed();
+    private void addRiskMessages(Set<String> riskMessages, String messageText) {
+        if (isBlank(messageText)) {
+            return;
+        }
 
-        // 위험 판단 규칙은 현재 날씨 화면에서 쓰는 WeatherAdvisor를 그대로 재사용합니다.
-        // 이렇게 해두면 현재 날씨와 예보 기반 판단 기준이 서로 달라지는 문제를 줄일 수 있습니다.
-        WeatherAdviceResult adviceResult = weatherAdvisor.advise(
-                weatherMain,
-                description,
-                temperature,
-                windSpeed
-        );
+        String[] messages = messageText.split("\\n");
+        for (String message : messages) {
+            String trimmedMessage = message.trim();
+            if (!trimmedMessage.isEmpty()) {
+                riskMessages.add(trimmedMessage);
+            }
+        }
+    }
 
-        return new ForecastScheduleRiskResult(
-                schedule,
-                forecastItem.getDtTxt(),
-                weatherMain,
-                description,
-                safeDouble(temperature),
-                safeDouble(windSpeed),
-                adviceResult.hasRisk(),
-                adviceResult.getRiskMessage(),
-                adviceResult.getRecommendedItems()
-        );
+    private void addRecommendedItems(Set<String> recommendedItems, String itemText) {
+        if (isBlank(itemText)) {
+            return;
+        }
+
+        String[] items = itemText.split(",");
+        for (String item : items) {
+            String trimmedItem = item.trim();
+            if (!trimmedItem.isEmpty()) {
+                recommendedItems.add(trimmedItem);
+            }
+        }
+    }
+
+    private String joinLines(Set<String> values) {
+        StringBuilder builder = new StringBuilder();
+        int index = 0;
+        for (String value : values) {
+            if (index > 0) {
+                builder.append("\n");
+            }
+            builder.append(value);
+            index++;
+        }
+        return builder.toString();
+    }
+
+    private String joinComma(Set<String> values) {
+        StringBuilder builder = new StringBuilder();
+        int index = 0;
+        for (String value : values) {
+            if (index > 0) {
+                builder.append(", ");
+            }
+            builder.append(value);
+            index++;
+        }
+        return builder.toString();
     }
 
     private Date parseDate(String value, String pattern) {

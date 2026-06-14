@@ -2,6 +2,7 @@ package com.sch.plancast.data.remote.dto;
 
 import com.google.gson.annotations.SerializedName;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -16,6 +17,39 @@ public class ForecastResponse {
     public List<ForecastItem> getForecastItems() {
         if (forecastItems == null) {
             return Collections.emptyList();
+        }
+        return forecastItems;
+    }
+
+    public static ForecastResponse createForTest(List<ForecastItem> forecastItems) {
+        ForecastResponse response = new ForecastResponse();
+        response.forecastItems = forecastItems;
+        return response;
+    }
+
+    public ForecastItem findFirstItemByDateForTest(String date) {
+        if (date == null || date.trim().isEmpty()) {
+            return null;
+        }
+
+        for (ForecastItem forecastItem : getForecastItems()) {
+            if (forecastItem != null && forecastItem.isSameDateForTest(date)) {
+                return forecastItem;
+            }
+        }
+        return null;
+    }
+
+    public void addForecastItemForTest(ForecastItem forecastItem) {
+        if (forecastItem == null) {
+            return;
+        }
+        getMutableForecastItemsForTest().add(forecastItem);
+    }
+
+    private List<ForecastItem> getMutableForecastItemsForTest() {
+        if (forecastItems == null) {
+            forecastItems = new ArrayList<>();
         }
         return forecastItems;
     }
@@ -67,6 +101,68 @@ public class ForecastResponse {
 
         public Double getWindSpeed() {
             return wind == null ? null : wind.speed;
+        }
+
+        public static ForecastItem createForTest(
+                String dateTimeText,
+                String weatherMain,
+                String description,
+                double temperature,
+                double windSpeed
+        ) {
+            ForecastItem forecastItem = new ForecastItem();
+            forecastItem.dateTimeText = dateTimeText;
+
+            Main main = new Main();
+            main.temperature = temperature;
+            forecastItem.main = main;
+
+            Weather weatherItem = new Weather();
+            weatherItem.main = weatherMain;
+            weatherItem.description = description;
+            forecastItem.weather = Collections.singletonList(weatherItem);
+
+            Wind wind = new Wind();
+            wind.speed = windSpeed;
+            forecastItem.wind = wind;
+
+            return forecastItem;
+        }
+
+        public static ForecastItem createRainItemForTest(String date) {
+            return createForTest(
+                    date + " 12:00:00",
+                    "Rain",
+                    "비",
+                    18.0,
+                    2.0
+            );
+        }
+
+        public void applyFakeRainForTest() {
+            if (main == null) {
+                main = new Main();
+            }
+            main.temperature = 18.0;
+
+            Weather weatherItem = getFirstWeather();
+            if (weatherItem == null) {
+                weatherItem = new Weather();
+                weather = Collections.singletonList(weatherItem);
+            }
+            weatherItem.main = "Rain";
+            weatherItem.description = "비";
+
+            if (wind == null) {
+                wind = new Wind();
+            }
+            wind.speed = 2.0;
+        }
+
+        public boolean isSameDateForTest(String date) {
+            return !safeString(date).isEmpty()
+                    && !safeString(dateTimeText).isEmpty()
+                    && dateTimeText.startsWith(date + " ");
         }
 
         // weather 배열이 비어 있거나 null이어도 앱이 죽지 않도록 첫 항목을 안전하게 꺼냅니다.

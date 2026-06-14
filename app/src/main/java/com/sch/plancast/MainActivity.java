@@ -8,7 +8,9 @@ import android.location.Address;
 import android.location.Geocoder;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,8 +24,10 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.sch.plancast.data.local.ScheduleEntity;
+import com.sch.plancast.data.remote.dto.ForecastResponse;
 import com.sch.plancast.data.repository.ScheduleRepository;
 import com.sch.plancast.data.repository.WeatherRepository;
 import com.sch.plancast.domain.WeatherAdviceResult;
@@ -33,15 +37,23 @@ import com.sch.plancast.notification.AlarmScheduler;
 import com.sch.plancast.notification.DailyWeatherCheckReceiver;
 import com.sch.plancast.ui.schedule.ScheduleAdapter;
 import com.sch.plancast.ui.schedule.ScheduleFormActivity;
+import com.sch.plancast.ui.weather.DailyForecastAdapter;
+import com.sch.plancast.ui.weather.DailyForecastItem;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final String WEATHER_CHECK_TAG = "PlanCastWeatherCheck";
+    private static final int MAX_FORECAST_DAYS = 5;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
     private static final int NOTIFICATION_PERMISSION_REQUEST_CODE = 1002;
 
@@ -49,12 +61,17 @@ public class MainActivity extends AppCompatActivity {
     private WeatherRepository weatherRepository;
     private WeatherAdvisor weatherAdvisor;
     private ScheduleAdapter scheduleAdapter;
+    private DailyForecastAdapter dailyForecastAdapter;
     private LocationProvider locationProvider;
+    private View weatherContentView;
+    private View scheduleContentView;
+    private FloatingActionButton addScheduleButton;
     private TextView locationStatusTextView;
     private TextView tempTextView;
     private TextView weatherInfoTextView;
     private TextView weatherRiskTextView;
     private TextView weatherRecommendationTextView;
+    private TextView forecastEmptyTextView;
     private TextView selectedDateTextView;
     private TextView emptyTextView;
     private String selectedDate;
@@ -86,13 +103,21 @@ public class MainActivity extends AppCompatActivity {
         locationProvider = new LocationProvider(this);
         selectedDate = formatDate(System.currentTimeMillis());
 
+        weatherContentView = findViewById(R.id.weatherContentView);
+        scheduleContentView = findViewById(R.id.scheduleContentView);
         locationStatusTextView = findViewById(R.id.locationStatusTextView);
         tempTextView = findViewById(R.id.tempTextView);
         weatherInfoTextView = findViewById(R.id.weatherInfoTextView);
         weatherRiskTextView = findViewById(R.id.weatherRiskTextView);
         weatherRecommendationTextView = findViewById(R.id.weatherRecommendationTextView);
+        forecastEmptyTextView = findViewById(R.id.forecastEmptyTextView);
         selectedDateTextView = findViewById(R.id.selectedDateTextView);
         emptyTextView = findViewById(R.id.emptyTextView);
+
+        RecyclerView forecastRecyclerView = findViewById(R.id.forecastRecyclerView);
+        dailyForecastAdapter = new DailyForecastAdapter();
+        forecastRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        forecastRecyclerView.setAdapter(dailyForecastAdapter);
 
         RecyclerView scheduleRecyclerView = findViewById(R.id.scheduleRecyclerView);
         scheduleAdapter = new ScheduleAdapter(schedule -> {
@@ -110,16 +135,64 @@ public class MainActivity extends AppCompatActivity {
             loadSchedulesBySelectedDate();
         });
 
-        FloatingActionButton addScheduleButton = findViewById(R.id.addScheduleButton);
+        addScheduleButton = findViewById(R.id.addScheduleButton);
         addScheduleButton.setOnClickListener(view -> {
             Intent intent = new Intent(MainActivity.this, ScheduleFormActivity.class);
             intent.putExtra(ScheduleFormActivity.EXTRA_DATE, selectedDate);
             startActivity(intent);
         });
 
+        Button testNotificationButton = findViewById(R.id.testNotificationButton);
+        testNotificationButton.setOnClickListener(view -> {
+            // 발표 시연 및 개발 검증용 버튼입니다.
+            // 1분 뒤 DailyWeatherCheckReceiver를 실행해 백그라운드 알림 흐름을 빠르게 확인합니다.
+            Log.d(WEATHER_CHECK_TAG, "테스트 알림 예약 버튼 클릭됨");
+            requestNotificationPermissionIfNeeded();
+            new AlarmScheduler().scheduleDailyWeatherCheckForTest(MainActivity.this);
+            Toast.makeText(
+                    MainActivity.this,
+                    "1분 뒤 테스트 알림이 실행됩니다.",
+                    Toast.LENGTH_SHORT
+            ).show();
+            Log.d(WEATHER_CHECK_TAG, "테스트 알림 예약 Toast 표시 완료");
+        });
+
+        setupBottomNavigation();
         updateSelectedDateLabel();
         checkLocationPermissionAndLoadLocation();
         new AlarmScheduler().scheduleDailyWeatherCheck(this);
+    }
+
+    private void setupBottomNavigation() {
+        BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
+        bottomNavigationView.setOnItemSelectedListener(item -> {
+            int itemId = item.getItemId();
+            if (itemId == R.id.navigation_weather) {
+                showWeatherTab();
+                return true;
+            }
+            if (itemId == R.id.navigation_schedule) {
+                showScheduleTab();
+                return true;
+            }
+            return false;
+        });
+
+        bottomNavigationView.setSelectedItemId(R.id.navigation_weather);
+        showWeatherTab();
+    }
+
+    private void showWeatherTab() {
+        weatherContentView.setVisibility(View.VISIBLE);
+        scheduleContentView.setVisibility(View.GONE);
+        addScheduleButton.setVisibility(View.GONE);
+    }
+
+    private void showScheduleTab() {
+        weatherContentView.setVisibility(View.GONE);
+        scheduleContentView.setVisibility(View.VISIBLE);
+        addScheduleButton.setVisibility(View.VISIBLE);
+        loadSchedulesBySelectedDate();
     }
 
     @Override
@@ -226,6 +299,7 @@ public class MainActivity extends AppCompatActivity {
         locationStatusTextView.setText("📍 위치 확인 중...");
         weatherInfoTextView.setText("현재 위치를 확인한 뒤 날씨를 불러옵니다.");
         showWeatherAdviceUnavailable();
+        showForecastLoading();
         locationProvider.getCurrentLocation(new LocationProvider.LocationCallback() {
             @Override
             public void onLocationReceived(double latitude, double longitude) {
@@ -235,6 +309,7 @@ public class MainActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         locationStatusTextView.setText(address);
                         loadCurrentWeather(latitude, longitude);
+                        loadForecast(latitude, longitude);
                     });
                 }).start();
             }
@@ -245,6 +320,7 @@ public class MainActivity extends AppCompatActivity {
                     locationStatusTextView.setText("📍 위치 확인 실패");
                     weatherInfoTextView.setText("위치를 확인할 수 없어 날씨를 불러오지 않았습니다.");
                     showWeatherAdviceUnavailable();
+                    showForecastUnavailable("위치를 확인할 수 없어 5일 예보를 불러오지 않았습니다.");
                     Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
                 });
             }
@@ -298,11 +374,10 @@ public class MainActivity extends AppCompatActivity {
                     if (tempTextView != null) {
                         tempTextView.setText(String.format(Locale.US, "%.1f°", weatherInfo.getCurrentTemperature()));
                     }
-                    String infoText = String.format(Locale.US, "%s\n🌬️ 풍속 %.1fm/s  |  🌡️ %.1f° / %.1f°",
+                    String infoText = String.format(Locale.US, "%s\n현재 기온 %.1f°  |  풍속 %.1fm/s",
                             weatherInfo.getWeatherStatus(),
-                            weatherInfo.getWindSpeed(),
-                            weatherInfo.getMinTemperature(),
-                            weatherInfo.getMaxTemperature());
+                            weatherInfo.getCurrentTemperature(),
+                            weatherInfo.getWindSpeed());
                     weatherInfoTextView.setText(infoText);
                     updateWeatherAdvice(weatherInfo);
                 });
@@ -322,6 +397,162 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void loadForecast(double latitude, double longitude) {
+        showForecastLoading();
+        weatherRepository.getForecast(latitude, longitude, new WeatherRepository.ForecastCallback() {
+            @Override
+            public void onSuccess(ForecastResponse forecastResponse) {
+                runOnUiThread(() -> {
+                    List<DailyForecastItem> forecastItems = createDailyForecastItems(forecastResponse);
+                    dailyForecastAdapter.submitList(forecastItems);
+                    if (forecastItems.isEmpty()) {
+                        forecastEmptyTextView.setVisibility(View.VISIBLE);
+                        forecastEmptyTextView.setText("표시할 5일 예보가 없습니다.");
+                    } else {
+                        forecastEmptyTextView.setVisibility(View.GONE);
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                runOnUiThread(() -> showForecastUnavailable(errorMessage));
+            }
+        });
+    }
+
+    private List<DailyForecastItem> createDailyForecastItems(ForecastResponse forecastResponse) {
+        if (forecastResponse == null) {
+            return Collections.emptyList();
+        }
+
+        Map<String, DailyForecastSummary> dailySummaries = new LinkedHashMap<>();
+        for (ForecastResponse.ForecastItem forecastItem : forecastResponse.getForecastItems()) {
+            String date = extractForecastDate(forecastItem);
+            Double temperature = forecastItem == null ? null : forecastItem.getTemperature();
+            if (date == null || temperature == null) {
+                continue;
+            }
+
+            DailyForecastSummary summary = dailySummaries.get(date);
+            if (summary == null) {
+                summary = new DailyForecastSummary(date);
+                dailySummaries.put(date, summary);
+            }
+            summary.add(forecastItem);
+        }
+
+        List<DailyForecastItem> displayItems = new ArrayList<>();
+        for (DailyForecastSummary summary : dailySummaries.values()) {
+            if (displayItems.size() >= MAX_FORECAST_DAYS) {
+                break;
+            }
+            if (summary.hasTemperature()) {
+                displayItems.add(summary.toDisplayItem());
+            }
+        }
+        return displayItems;
+    }
+
+    private String extractForecastDate(ForecastResponse.ForecastItem forecastItem) {
+        if (forecastItem == null) {
+            return null;
+        }
+
+        String dateTimeText = forecastItem.getDtTxt();
+        if (dateTimeText == null || dateTimeText.length() < 10) {
+            return null;
+        }
+        return dateTimeText.substring(0, 10);
+    }
+
+    private boolean isRiskyForecastItem(ForecastResponse.ForecastItem forecastItem) {
+        if (forecastItem == null) {
+            return false;
+        }
+
+        return weatherAdvisor.advise(
+                forecastItem.getWeatherMain(),
+                forecastItem.getDescription(),
+                forecastItem.getTemperature(),
+                forecastItem.getWindSpeed()
+        ).hasRisk();
+    }
+
+    private boolean shouldReplaceRepresentative(
+            ForecastResponse.ForecastItem candidate,
+            boolean candidateHasRisk,
+            ForecastResponse.ForecastItem current,
+            boolean currentHasRisk
+    ) {
+        if (current == null) {
+            return true;
+        }
+        if (candidateHasRisk && !currentHasRisk) {
+            return true;
+        }
+        if (!candidateHasRisk && currentHasRisk) {
+            return false;
+        }
+        return getNoonDistanceMinutes(candidate) < getNoonDistanceMinutes(current);
+    }
+
+    private int getNoonDistanceMinutes(ForecastResponse.ForecastItem forecastItem) {
+        if (forecastItem == null || forecastItem.getDtTxt().length() < 16) {
+            return Integer.MAX_VALUE;
+        }
+
+        try {
+            int hour = Integer.parseInt(forecastItem.getDtTxt().substring(11, 13));
+            int minute = Integer.parseInt(forecastItem.getDtTxt().substring(14, 16));
+            int totalMinutes = hour * 60 + minute;
+            return Math.abs(totalMinutes - 12 * 60);
+        } catch (NumberFormatException exception) {
+            return Integer.MAX_VALUE;
+        }
+    }
+
+    private String getDayOfWeek(String dateText) {
+        SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        inputFormat.setLenient(false);
+        SimpleDateFormat outputFormat = new SimpleDateFormat("E요일", Locale.KOREAN);
+
+        try {
+            Date date = inputFormat.parse(dateText);
+            return date == null ? "" : outputFormat.format(date);
+        } catch (Exception exception) {
+            return "";
+        }
+    }
+
+    private String getForecastDescription(ForecastResponse.ForecastItem forecastItem) {
+        if (forecastItem == null) {
+            return "날씨 정보 없음";
+        }
+
+        String description = forecastItem.getDescription();
+        if (description != null && !description.trim().isEmpty()) {
+            return description;
+        }
+
+        String weatherMain = forecastItem.getWeatherMain();
+        if (weatherMain != null && !weatherMain.trim().isEmpty()) {
+            return weatherMain;
+        }
+        return "날씨 정보 없음";
+    }
+
+    private String getForecastDetailText(boolean hasRisk, double windSpeed) {
+        if (Double.isNaN(windSpeed)) {
+            return hasRisk ? "위험 주의" : "풍속 정보 없음";
+        }
+
+        if (hasRisk) {
+            return String.format(Locale.US, "위험 주의 · 풍속 %.1fm/s", windSpeed);
+        }
+        return String.format(Locale.US, "풍속 %.1fm/s", windSpeed);
+    }
+
     private void updateWeatherAdvice(WeatherRepository.WeatherInfo weatherInfo) {
         WeatherAdviceResult adviceResult = weatherAdvisor.advise(
                 weatherInfo.getWeatherMain(),
@@ -338,6 +569,26 @@ public class MainActivity extends AppCompatActivity {
         weatherRecommendationTextView.setText("날씨 정보를 불러온 뒤 확인할 수 있습니다.");
     }
 
+    private void showForecastLoading() {
+        if (dailyForecastAdapter != null) {
+            dailyForecastAdapter.submitList(Collections.emptyList());
+        }
+        if (forecastEmptyTextView != null) {
+            forecastEmptyTextView.setVisibility(View.VISIBLE);
+            forecastEmptyTextView.setText("5일 예보를 불러오는 중입니다.");
+        }
+    }
+
+    private void showForecastUnavailable(String message) {
+        if (dailyForecastAdapter != null) {
+            dailyForecastAdapter.submitList(Collections.emptyList());
+        }
+        if (forecastEmptyTextView != null) {
+            forecastEmptyTextView.setVisibility(View.VISIBLE);
+            forecastEmptyTextView.setText(message);
+        }
+    }
+
     private void showLocationPermissionDeniedMessage() {
         String message = "위치 권한이 거부되어 현재 위치 기반 날씨를 사용할 수 없습니다.";
         locationStatusTextView.setText(message);
@@ -346,6 +597,7 @@ public class MainActivity extends AppCompatActivity {
         }
         weatherInfoTextView.setText("위치 권한을 허용하면 날씨 정보를 확인할 수 있습니다.");
         showWeatherAdviceUnavailable();
+        showForecastUnavailable("위치 권한을 허용하면 5일 예보를 확인할 수 있습니다.");
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
@@ -380,5 +632,60 @@ public class MainActivity extends AppCompatActivity {
 
     private String formatDate(long timeMillis) {
         return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date(timeMillis));
+    }
+
+    private class DailyForecastSummary {
+
+        private final String date;
+        private double maxTemperature = -Double.MAX_VALUE;
+        private double minTemperature = Double.MAX_VALUE;
+        private double maxWindSpeed = Double.NaN;
+        private boolean hasRisk;
+        private boolean representativeHasRisk;
+        private ForecastResponse.ForecastItem representativeItem;
+
+        DailyForecastSummary(String date) {
+            this.date = date;
+        }
+
+        void add(ForecastResponse.ForecastItem forecastItem) {
+            Double temperature = forecastItem.getTemperature();
+            if (temperature != null) {
+                maxTemperature = Math.max(maxTemperature, temperature);
+                minTemperature = Math.min(minTemperature, temperature);
+            }
+
+            Double windSpeed = forecastItem.getWindSpeed();
+            if (windSpeed != null && (Double.isNaN(maxWindSpeed) || windSpeed > maxWindSpeed)) {
+                maxWindSpeed = windSpeed;
+            }
+
+            boolean itemHasRisk = isRiskyForecastItem(forecastItem);
+            hasRisk = hasRisk || itemHasRisk;
+            if (shouldReplaceRepresentative(
+                    forecastItem,
+                    itemHasRisk,
+                    representativeItem,
+                    representativeHasRisk
+            )) {
+                representativeItem = forecastItem;
+                representativeHasRisk = itemHasRisk;
+            }
+        }
+
+        boolean hasTemperature() {
+            return maxTemperature > -Double.MAX_VALUE && minTemperature < Double.MAX_VALUE;
+        }
+
+        DailyForecastItem toDisplayItem() {
+            return new DailyForecastItem(
+                    date,
+                    getDayOfWeek(date),
+                    getForecastDescription(representativeItem),
+                    maxTemperature,
+                    minTemperature,
+                    getForecastDetailText(hasRisk, maxWindSpeed)
+            );
+        }
     }
 }

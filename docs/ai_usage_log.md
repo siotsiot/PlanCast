@@ -524,3 +524,50 @@
 ### 빌드 결과
 - `./gradlew.bat assembleDebug` 실행 결과 `BUILD SUCCESSFUL`을 확인했다.
 - 기존 기능을 유지한 상태로 매일 아침 8시 야외 일정 날씨 위험 자동 체크 알림 흐름을 연결했다.
+
+## 13. DailyWeatherCheckReceiver 알림 테스트 모드 추가
+
+### 사용한 AI 도구
+- Codex
+
+### 테스트 모드를 추가한 이유
+- 실제 날씨가 비, 눈, 강풍, 폭염, 한파 같은 위험 조건이 되는 시점을 발표 시간에 맞추기 어렵다.
+- OpenWeatherMap Forecast API 응답과 실제 야외 일정 데이터에 따라 알림 발생 여부가 달라지므로, 알림 표시 흐름 자체를 빠르게 검증할 수 있는 개발용 경로가 필요했다.
+- 테스트 모드는 실제 배포용 기능이 아니라 발표 시연과 개발 검증을 위한 임시 기능이며, 최종 제출 전에는 테스트 플래그를 `false`로 유지하거나 버튼을 제거할 수 있다.
+
+### 매일 오전 8시 알림을 1분 뒤 실행으로 검증하는 방식
+- 기존 `scheduleDailyWeatherCheck(Context context)` 메서드는 그대로 유지해 실제 앱에서는 매일 오전 8시 자동 점검이 동작한다.
+- 별도 테스트 메서드인 `scheduleDailyWeatherCheckForTest(Context context)`를 추가해 현재 시간 기준 1분 뒤 `DailyWeatherCheckReceiver`가 한 번 실행되도록 했다.
+- 테스트용 `PendingIntent` requestCode를 실제 매일 8시 알람과 다르게 설정해 두 알람이 서로 덮어쓰지 않도록 했다.
+- MainActivity에 `테스트 알림 예약` 버튼을 추가해 발표 중 버튼 클릭만으로 1분 뒤 Receiver 실행을 확인할 수 있게 했다.
+
+### 테스트 모드의 성격
+- `DailyWeatherCheckReceiver`에 `DEBUG_FORCE_RISK_NOTIFICATION` 플래그를 추가했다.
+- 플래그가 `true`이면 DB 조회, 저장 위치, Forecast API 결과와 관계없이 테스트 알림을 표시한다.
+- 기본값은 `false`로 두어 실제 운영 로직이 그대로 사용되도록 했다.
+- Android 13 이상에서는 알림 권한이 필요하므로, 테스트 버튼 클릭 시 알림 권한 요청 흐름도 함께 호출하도록 했다.
+
+### 생성/수정된 코드
+- `app/src/main/java/com/sch/plancast/notification/DailyWeatherCheckReceiver.java`
+  - 발표 시연 및 개발 검증용 `DEBUG_FORCE_RISK_NOTIFICATION` 플래그를 추가했다.
+  - 테스트 플래그가 `true`일 때 Forecast API 결과와 관계없이 `PlanCast 테스트 알림`을 표시하도록 했다.
+  - 테스트 경로에서도 `pendingResult.finish()`가 반드시 호출되도록 처리했다.
+- `app/src/main/java/com/sch/plancast/notification/AlarmScheduler.java`
+  - `scheduleDailyWeatherCheckForTest(Context context)` 메서드를 추가했다.
+  - 현재 시간 기준 1분 뒤 Receiver가 실행되는 1회성 알람을 예약하도록 했다.
+  - `setExactAndAllowWhileIdle`은 사용하지 않고 `setAndAllowWhileIdle` 또는 `set`을 사용했다.
+- `app/src/main/java/com/sch/plancast/MainActivity.java`
+  - `테스트 알림 예약` 버튼 클릭 시 테스트 알람을 예약하도록 연결했다.
+  - 버튼 클릭 시 `1분 뒤 테스트 알림이 실행됩니다.` Toast를 표시하도록 했다.
+- `app/src/main/res/layout/activity_main.xml`
+  - 날씨/추천 준비물 영역 아래에 작은 테스트 버튼을 추가했다.
+
+### 팀원이 검토해야 할 내용
+- 테스트 플래그 기본값이 `false`인지 확인한다.
+- 발표 시 강제 알림을 확인하려면 `DEBUG_FORCE_RISK_NOTIFICATION`을 임시로 `true`로 바꾼 뒤 다시 빌드해야 한다.
+- 테스트 버튼이 기존 CalendarView, RecyclerView, FAB, 일정 CRUD 흐름을 방해하지 않는지 확인한다.
+- Android 13 이상 기기에서는 알림 권한을 허용해야 테스트 알림이 표시된다.
+
+### 빌드 결과
+- `./gradlew.bat assembleDebug` 실행 결과 `BUILD SUCCESSFUL`을 확인했다.
+- 기존 실제 매일 오전 8시 자동 점검 로직을 유지한 상태로 발표/개발 검증용 1분 뒤 실행 테스트 경로만 추가했다.

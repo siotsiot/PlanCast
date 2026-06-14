@@ -8,211 +8,293 @@
     android:background="#F5F7FA"
     tools:context=".MainActivity">
 
-    <androidx.core.widget.NestedScrollView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fillViewport="true">
+    <FrameLayout
+        android:id="@+id/contentContainer"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toTopOf="@id/bottomNavigationView"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
-        <LinearLayout
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/weatherContentView"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:layout_height="match_parent"
+            android:fillViewport="true">
 
-            <!-- Location Status -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="10dp"
+                    android:text="오늘 날씨"
+                    android:textColor="#111827"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/locationStatusTextView"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:layout_marginBottom="12dp"
                     android:text="📍 위치 확인 중..."
                     android:textColor="#555555"
                     android:textSize="14sp" />
+
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/weatherCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    app:cardBackgroundColor="#EBF4FF"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="4dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical"
+                        android:padding="24dp">
+
+                        <TextView
+                            android:id="@+id/tempTextView"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="--°"
+                            android:textColor="#1D2433"
+                            android:textSize="48sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/weatherInfoTextView"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:gravity="center"
+                            android:lineSpacingExtra="4dp"
+                            android:text="날씨 정보를 불러오는 중..."
+                            android:textColor="#4B5563"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/riskCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="12dp"
+                            android:text="⚠️"
+                            android:textSize="24sp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="위험 안내"
+                                android:textColor="#7A3E00"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/weatherRiskTextView"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:textColor="#7A3E00"
+                                android:textSize="13sp"
+                                tools:text="날씨 정보를 불러온 뒤 확인할 수 있습니다." />
+                        </LinearLayout>
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/recommendationCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="12dp"
+                            android:text="🎒"
+                            android:textSize="24sp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="추천 준비물"
+                                android:textColor="#255C35"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/weatherRecommendationTextView"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:textColor="#255C35"
+                                android:textSize="13sp"
+                                tools:text="날씨 정보를 불러온 뒤 확인할 수 있습니다." />
+                        </LinearLayout>
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:text="5일 예보"
+                    android:textColor="#111827"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/forecastRecyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    tools:itemCount="5"
+                    tools:listitem="@layout/item_daily_forecast" />
+
+                <TextView
+                    android:id="@+id/forecastEmptyTextView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:text="5일 예보를 불러오는 중..."
+                    android:textColor="#6B7280"
+                    android:textSize="14sp" />
+
+                <!-- 발표 시연 및 개발 검증용 버튼입니다. 최종 제출 전 제거하거나 숨길 수 있습니다. -->
+                <Button
+                    android:id="@+id/testNotificationButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="20dp"
+                    android:backgroundTint="#374151"
+                    android:text="테스트 알림 예약"
+                    android:textColor="@android:color/white"
+                    android:textSize="14sp" />
             </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
 
-            <!-- Weather Card -->
-            <androidx.cardview.widget.CardView
-                android:id="@+id/weatherCard"
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/scheduleContentView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true"
+            android:visibility="gone">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardBackgroundColor="#EBF4FF"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="4dp">
+                android:orientation="vertical"
+                android:padding="16dp">
 
-                <LinearLayout
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center_horizontal"
-                    android:orientation="vertical"
-                    android:padding="24dp">
+                    android:layout_marginBottom="10dp"
+                    android:text="일정"
+                    android:textColor="#111827"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
 
-                    <TextView
-                        android:id="@+id/tempTextView"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="--°"
-                        android:textColor="#1D2433"
-                        android:textSize="48sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/weatherInfoTextView"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:gravity="center"
-                        android:lineSpacingExtra="4dp"
-                        android:text="날씨 정보를 불러오는 중..."
-                        android:textColor="#4B5563"
-                        android:textSize="14sp" />
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
-
-            <!-- Risk Card -->
-            <androidx.cardview.widget.CardView
-                android:id="@+id/riskCard"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp">
-
-                <LinearLayout
+                <CalendarView
+                    android:id="@+id/calendarView"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:padding="16dp">
+                    android:layout_marginBottom="12dp"
+                    android:background="@android:color/white"
+                    android:elevation="1dp" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="12dp"
-                        android:text="⚠️"
-                        android:textSize="24sp" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="위험 안내"
-                            android:textColor="#7A3E00"
-                            android:textSize="14sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/weatherRiskTextView"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:textColor="#7A3E00"
-                            android:textSize="13sp"
-                            tools:text="날씨 정보를 불러온 뒤 확인할 수 있습니다." />
-                    </LinearLayout>
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
-
-            <!-- Recommendation Card -->
-            <androidx.cardview.widget.CardView
-                android:id="@+id/recommendationCard"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp">
-
-                <LinearLayout
+                <TextView
+                    android:id="@+id/selectedDateTextView"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:padding="16dp">
+                    android:layout_marginBottom="8dp"
+                    android:textColor="#111827"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    tools:text="2026-06-13 일정" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="12dp"
-                        android:text="🎒"
-                        android:textSize="24sp" />
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/scheduleRecyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    tools:listitem="@layout/item_schedule" />
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical">
+                <TextView
+                    android:id="@+id/emptyTextView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:gravity="center"
+                    android:text="등록된 일정이 없습니다"
+                    android:textColor="#9CA3AF"
+                    android:textSize="15sp"
+                    android:visibility="gone" />
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="추천 준비물"
-                            android:textColor="#255C35"
-                            android:textSize="14sp"
-                            android:textStyle="bold" />
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="96dp" />
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
+    </FrameLayout>
 
-                        <TextView
-                            android:id="@+id/weatherRecommendationTextView"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:textColor="#255C35"
-                            android:textSize="13sp"
-                            tools:text="날씨 정보를 불러온 뒤 확인할 수 있습니다." />
-                    </LinearLayout>
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
-
-            <CalendarView
-                android:id="@+id/calendarView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:background="@android:color/white"
-                android:elevation="1dp" />
-
-            <TextView
-                android:id="@+id/selectedDateTextView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                android:textColor="#111827"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                tools:text="2026-06-13 일정" />
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/scheduleRecyclerView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false"
-                tools:listitem="@layout/item_schedule" />
-
-            <TextView
-                android:id="@+id/emptyTextView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:gravity="center"
-                android:text="등록된 일정이 없습니다"
-                android:textColor="#9CA3AF"
-                android:textSize="15sp"
-                android:visibility="gone" />
-
-            <!-- Spacer for FAB -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="80dp" />
-
-        </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNavigationView"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@android:color/white"
+        app:itemIconTint="#2864FF"
+        app:itemTextColor="#2864FF"
+        app:labelVisibilityMode="labeled"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:menu="@menu/menu_bottom_navigation" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/addScheduleButton"
@@ -220,10 +302,10 @@
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
         android:contentDescription="일정 추가"
+        android:visibility="gone"
         app:backgroundTint="#2864FF"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/bottomNavigationView"
         app:layout_constraintEnd_toEndOf="parent"
         app:srcCompat="@android:drawable/ic_input_add"
         app:tint="#FFFFFF" />
-
 </androidx.constraintlayout.widget.ConstraintLayout>

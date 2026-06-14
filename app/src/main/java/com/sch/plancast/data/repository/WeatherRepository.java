@@ -1,10 +1,13 @@
 package com.sch.plancast.data.repository;
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 
 import com.sch.plancast.BuildConfig;
 import com.sch.plancast.data.remote.OpenWeatherApi;
 import com.sch.plancast.data.remote.RetrofitClient;
+import com.sch.plancast.data.remote.dto.ForecastResponse;
 import com.sch.plancast.data.remote.dto.WeatherResponse;
 
 import java.util.Locale;
@@ -15,6 +18,7 @@ import retrofit2.Response;
 
 public class WeatherRepository {
 
+    private static final String TAG = "WeatherRepository";
     private static final String UNITS_METRIC = "metric";
     private static final String LANGUAGE_KOREAN = "kr";
 
@@ -71,6 +75,51 @@ public class WeatherRepository {
         });
     }
 
+    public void getForecast(double latitude, double longitude, ForecastCallback callback) {
+        if (callback == null) {
+            return;
+        }
+
+        String apiKey = BuildConfig.OPEN_WEATHER_MAP_API_KEY;
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            callback.onError("날씨 API 키가 설정되지 않았습니다. local.properties의 OPEN_WEATHER_MAP_API_KEY를 확인하세요.");
+            return;
+        }
+
+        // 5일 예보 API도 현재 날씨 API와 동일하게 metric/kr 옵션을 사용합니다.
+        // API Key는 BuildConfig에서만 가져오며, 로그나 코드에 직접 노출하지 않습니다.
+        openWeatherApi.getForecast(
+                latitude,
+                longitude,
+                apiKey,
+                UNITS_METRIC,
+                LANGUAGE_KOREAN
+        ).enqueue(new Callback<ForecastResponse>() {
+            @Override
+            public void onResponse(@NonNull Call<ForecastResponse> call, @NonNull Response<ForecastResponse> response) {
+                if (!response.isSuccessful()) {
+                    callback.onError(getHttpErrorMessage(response.code()));
+                    return;
+                }
+
+                ForecastResponse forecastResponse = response.body();
+                if (forecastResponse == null) {
+                    callback.onError("날씨 서버 응답이 비어 있습니다. 잠시 후 다시 시도하세요.");
+                    return;
+                }
+
+                // 테스트용 로그입니다. API Key는 출력하지 않고 예보 항목 개수만 확인합니다.
+                Log.d(TAG, "Forecast response count: " + forecastResponse.getForecastItems().size());
+                callback.onSuccess(forecastResponse);
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<ForecastResponse> call, @NonNull Throwable throwable) {
+                callback.onError(getNetworkErrorMessage(throwable));
+            }
+        });
+    }
+
     private String getHttpErrorMessage(int code) {
         if (code == 401) {
             return "날씨 API 인증에 실패했습니다. API Key 활성화 상태를 확인하세요. (HTTP 401)";
@@ -87,6 +136,12 @@ public class WeatherRepository {
 
     public interface WeatherCallback {
         void onSuccess(WeatherInfo weatherInfo);
+
+        void onError(String errorMessage);
+    }
+
+    public interface ForecastCallback {
+        void onSuccess(ForecastResponse forecastResponse);
 
         void onError(String errorMessage);
     }

@@ -336,3 +336,55 @@
 ### 빌드 및 실행 테스트 결과
 - `./gradlew.bat assembleDebug` 실행 결과 `BUILD SUCCESSFUL`을 확인했다.
 - 최종 마무리 변경 후에도 컴파일 기준으로 기존 기능들이 유지됨을 확인했다.
+
+## 9. OpenWeatherMap 5일 예보 API 추가
+
+### 사용한 AI 도구
+- Codex
+
+### 5일 예보 API를 추가한 이유
+- 현재 날씨 API는 앱 실행 시점의 날씨만 제공하므로, 일정 시간이 미래인 경우에는 일정 시점의 날씨를 판단하기 어렵다.
+- OpenWeatherMap 5 Day / 3 Hour Forecast API는 3시간 단위 예보 목록을 제공하므로, 이후 단계에서 일정 시간과 가까운 예보를 찾아 야외 일정 위험도를 더 현실적으로 판단할 수 있다.
+- 이번 단계에서는 백그라운드 알림이나 일정 조회와 연결하지 않고, Forecast API를 호출하고 응답을 파싱할 수 있는 네트워크 기반만 준비했다.
+
+### Current Weather API와 Forecast API의 차이
+- Current Weather API
+  - 현재 위치의 현재 날씨를 조회한다.
+  - PlanCast 메인 화면에서 현재 기온, 날씨 상태, 풍속을 즉시 보여주는 데 사용한다.
+- Forecast API
+  - 현재 위치의 5일 예보를 3시간 간격 목록으로 조회한다.
+  - 각 예보 항목에는 `dt`, `dt_txt`, 기온, 날씨 상태, 날씨 설명, 풍속이 포함된다.
+  - 이후 일정 시간과 예보 시간을 비교해 야외 일정 알림이나 준비물 추천에 활용할 수 있다.
+
+### AI에게 요청한 내용
+- 기존 `OpenWeatherApi`에 `data/2.5/forecast` 엔드포인트 메서드를 추가하도록 요청했다.
+- `ForecastResponse.java` DTO를 새로 만들어 필요한 필드만 파싱하도록 요청했다.
+- 기존 `RetrofitClient`와 `BuildConfig.OPEN_WEATHER_MAP_API_KEY`를 그대로 사용하도록 요청했다.
+- `WeatherRepository`에 `getForecast(double latitude, double longitude, ForecastCallback callback)` 메서드를 추가하도록 요청했다.
+- API Key 누락, HTTP 401, 기타 HTTP 오류, 네트워크 실패, null 응답을 구분해서 처리하도록 요청했다.
+- 이번 단계에서는 MainActivity UI, 백그라운드 알림, AlarmReceiver, Room DB 일정 조회 기능을 추가하지 않도록 요청했다.
+
+### AI가 생성하거나 수정한 코드
+- `app/src/main/java/com/sch/plancast/data/remote/OpenWeatherApi.java`
+  - 기존 현재 날씨 API 메서드는 유지했다.
+  - Forecast API용 `getForecast` 메서드를 추가했다.
+  - `lat`, `lon`, `appid`, `units`, `lang` 쿼리 파라미터를 전달하도록 구성했다.
+- `app/src/main/java/com/sch/plancast/data/remote/dto/ForecastResponse.java`
+  - Forecast API 응답의 `list` 배열을 파싱하는 DTO를 생성했다.
+  - 각 예보 항목의 `dt`, `dt_txt`, `main.temp`, `weather[0].main`, `weather[0].description`, `wind.speed`를 꺼낼 수 있는 getter를 추가했다.
+  - null 응답이나 빈 배열에서도 앱이 종료되지 않도록 안전한 getter를 작성했다.
+- `app/src/main/java/com/sch/plancast/data/repository/WeatherRepository.java`
+  - Forecast API 호출용 `getForecast` 메서드와 `ForecastCallback` 인터페이스를 추가했다.
+  - API Key는 `BuildConfig.OPEN_WEATHER_MAP_API_KEY`에서만 읽도록 유지했다.
+  - Forecast 응답 개수만 Logcat에 출력하도록 했고, API Key는 로그에 출력하지 않았다.
+
+### 팀원이 검토해야 할 내용
+- Forecast API가 기존 Current Weather API를 삭제하거나 변경하지 않았는지 확인한다.
+- Forecast DTO getter가 null 값에 안전한지 확인한다.
+- API Key가 코드나 로그에 직접 노출되지 않는지 확인한다.
+- 이번 단계에서 백그라운드 알림, 매일 8시 알람 예약, Room DB 일정 조회 기능이 추가되지 않았는지 확인한다.
+- 이후 단계에서 일정 시간과 `dt_txt` 또는 `dt`를 비교해 가장 가까운 예보를 선택하는 로직을 설계한다.
+
+### 빌드 결과
+- `./gradlew.bat assembleDebug` 실행 결과 `BUILD SUCCESSFUL`을 확인했다.
+- 기존 일정 CRUD, 현재 위치 조회, 현재 날씨 API, WeatherAdvisor, 알림 기능을 제거하지 않고 Forecast API 호출 기반만 추가했다.

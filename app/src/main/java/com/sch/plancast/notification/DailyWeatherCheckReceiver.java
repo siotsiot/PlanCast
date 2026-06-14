@@ -29,6 +29,9 @@ public class DailyWeatherCheckReceiver extends BroadcastReceiver {
     private static final String NOTIFICATION_TITLE = "PlanCast 날씨 변경 알림";
     private static final String NOTIFICATION_CONTENT =
             "며칠 뒤 예정된 야외 일정의 날씨가 변경되었습니다! 우산이나 준비물을 확인하세요.";
+    private static final String OK_NOTIFICATION_TITLE = "PlanCast 날씨 예보";
+    private static final String OK_NOTIFICATION_CONTENT =
+            "예정된 일정 기간 동안 날씨가 좋습니다. 즐거운 하루 되세요!";
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -114,12 +117,18 @@ public class DailyWeatherCheckReceiver extends BroadcastReceiver {
                             matcher.findRiskyOutdoorSchedules(schedules, forecastResponse);
 
                     Log.d(TAG, "Risky outdoor schedules: " + riskySchedules.size());
+                    NotificationHelper notificationHelper = new NotificationHelper(context);
                     if (!riskySchedules.isEmpty()) {
-                        NotificationHelper notificationHelper = new NotificationHelper(context);
                         notificationHelper.showNotification(
                                 DAILY_WEATHER_NOTIFICATION_ID,
                                 NOTIFICATION_TITLE,
                                 NOTIFICATION_CONTENT
+                        );
+                    } else {
+                        notificationHelper.showNotification(
+                                DAILY_WEATHER_NOTIFICATION_ID,
+                                OK_NOTIFICATION_TITLE,
+                                OK_NOTIFICATION_CONTENT
                         );
                     }
                 } catch (Exception exception) {

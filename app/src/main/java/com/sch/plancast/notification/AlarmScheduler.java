@@ -17,7 +17,8 @@ public class AlarmScheduler {
 
     private static final int NOTIFICATION_LEAD_MINUTES = 30;
     private static final int DAILY_WEATHER_CHECK_REQUEST_CODE = 8000;
-    private static final int DAILY_WEATHER_CHECK_HOUR = 8;
+    private static final int DAILY_WEATHER_CHECK_HOUR = 20;
+    private static final int DAILY_WEATHER_CHECK_MINUTE = 0;
 
     public void scheduleNotification(Context context, ScheduleEntity schedule) {
         if (context == null || schedule == null || schedule.getId() <= 0) {
@@ -143,7 +144,7 @@ public class AlarmScheduler {
     private Calendar getNextDailyWeatherCheckTime() {
         Calendar calendar = Calendar.getInstance();
         calendar.set(Calendar.HOUR_OF_DAY, DAILY_WEATHER_CHECK_HOUR);
-        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.MINUTE, DAILY_WEATHER_CHECK_MINUTE);
         calendar.set(Calendar.SECOND, 0);
         calendar.set(Calendar.MILLISECOND, 0);
 

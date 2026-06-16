@@ -23,7 +23,7 @@ public class AlarmScheduler {
     private static final int DAILY_WEATHER_CHECK_TEST_REQUEST_CODE = 8002;
     private static final int DAILY_WEATHER_CHECK_HOUR = 8;
     private static final int DAILY_WEATHER_CHECK_MINUTE = 0;
-    private static final int DAILY_WEATHER_CHECK_TEST_DELAY_MINUTES = 1;
+    private static final int DAILY_WEATHER_CHECK_TEST_DELAY_SECONDS = 10;
 
     // 특정 일정에 대한 알림 예약함
     public void scheduleNotification(Context context, ScheduleEntity schedule) {
@@ -140,7 +140,7 @@ public class AlarmScheduler {
         );
 
         Calendar triggerTime = Calendar.getInstance();
-        triggerTime.add(Calendar.MINUTE, DAILY_WEATHER_CHECK_TEST_DELAY_MINUTES);
+        triggerTime.add(Calendar.SECOND, DAILY_WEATHER_CHECK_TEST_DELAY_SECONDS);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             alarmManager.setAndAllowWhileIdle(

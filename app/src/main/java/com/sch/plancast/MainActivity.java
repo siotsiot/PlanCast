@@ -158,7 +158,7 @@ public class MainActivity extends AppCompatActivity {
             new AlarmScheduler().scheduleDailyWeatherCheckForTest(MainActivity.this);
             Toast.makeText(
                     MainActivity.this,
-                    "1분 뒤 테스트 알림이 실행됩니다.",
+                    "10초 뒤 테스트 알림이 실행됩니다.",
                     Toast.LENGTH_SHORT
             ).show();
             Log.d(WEATHER_CHECK_TAG, "테스트 알림 예약 Toast 표시 완료");

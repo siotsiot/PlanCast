@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat;
 
 import com.sch.plancast.R;
 
+// 시스템 알림 표시를 도와주는 유틸리티 클래스임
 public class NotificationHelper {
 
     private static final String TAG = "PlanCastWeatherCheck";
@@ -25,15 +26,18 @@ public class NotificationHelper {
 
     public NotificationHelper(Context context) {
         this.context = context.getApplicationContext();
+        // 채널 초기화함
         createNotificationChannel();
     }
 
+    // 시스템 상단바에 알림을 표시함
     public boolean showNotification(int notificationId, String title, String content) {
         if (!hasNotificationPermission()) {
             Log.w(TAG, "알림 표시 중단: POST_NOTIFICATIONS 권한이 없습니다.");
             return false;
         }
 
+        // 알림 속성 설정 및 빌드함
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentTitle(title)
@@ -42,11 +46,13 @@ public class NotificationHelper {
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setAutoCancel(true);
 
+        // 알림 매니저를 통해 알림 띄움
         NotificationManagerCompat.from(context).notify(notificationId, builder.build());
         Log.d(TAG, "알림 표시 요청 실행: notificationId=" + notificationId + ", title=" + title);
         return true;
     }
 
+    // 안드로이드 8.0 이상을 위한 알림 채널 생성함
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             return;
@@ -65,6 +71,7 @@ public class NotificationHelper {
         }
     }
 
+    // 알림 권한 유무 확인함
     private boolean hasNotificationPermission() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             return true;

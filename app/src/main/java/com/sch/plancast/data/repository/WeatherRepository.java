@@ -25,6 +25,7 @@ public class WeatherRepository {
     private final OpenWeatherApi openWeatherApi;
 
     public WeatherRepository() {
+        // API 서비스 객체 생성함
         openWeatherApi = RetrofitClient.getInstance().create(OpenWeatherApi.class);
     }
 
@@ -33,12 +34,14 @@ public class WeatherRepository {
             return;
         }
 
+        // BuildConfig에서 API 키 가져옴
         String apiKey = BuildConfig.OPEN_WEATHER_MAP_API_KEY;
         if (apiKey == null || apiKey.trim().isEmpty()) {
             callback.onError("날씨 API 키가 설정되지 않았습니다. local.properties의 OPEN_WEATHER_MAP_API_KEY를 확인하세요.");
             return;
         }
 
+        // 현재 날씨 정보 비동기로 요청함
         openWeatherApi.getCurrentWeather(
                 latitude,
                 longitude,
@@ -86,8 +89,7 @@ public class WeatherRepository {
             return;
         }
 
-        // 5일 예보 API도 현재 날씨 API와 동일하게 metric/kr 옵션을 사용합니다.
-        // API Key는 BuildConfig에서만 가져오며, 로그나 코드에 직접 노출하지 않습니다.
+        // 5일 일기 예보 데이터 요청함
         openWeatherApi.getForecast(
                 latitude,
                 longitude,
@@ -108,7 +110,6 @@ public class WeatherRepository {
                     return;
                 }
 
-                // 테스트용 로그입니다. API Key는 출력하지 않고 예보 항목 개수만 확인합니다.
                 Log.d(TAG, "Forecast response count: " + forecastResponse.getForecastItems().size());
                 callback.onSuccess(forecastResponse);
             }
@@ -121,6 +122,7 @@ public class WeatherRepository {
     }
 
     private String getHttpErrorMessage(int code) {
+        // 응답 코드별 에러 메시지 반환
         if (code == 401) {
             return "날씨 API 인증에 실패했습니다. API Key 활성화 상태를 확인하세요. (HTTP 401)";
         }
@@ -128,6 +130,7 @@ public class WeatherRepository {
     }
 
     private String getNetworkErrorMessage(Throwable throwable) {
+        // 네트워크 상태에 따른 에러 메시지 생성함
         if (throwable.getMessage() == null || throwable.getMessage().isEmpty()) {
             return "네트워크 연결을 확인한 뒤 다시 시도하세요.";
         }
@@ -175,6 +178,7 @@ public class WeatherRepository {
         }
 
         private static WeatherInfo from(WeatherResponse response) {
+            // API 응답 데이터를 앱 내부용 객체로 변환함
             String description = response.getWeatherDescription();
             String main = response.getWeatherMain();
             String weatherStatus = description.isEmpty() ? main : description;
@@ -191,6 +195,7 @@ public class WeatherRepository {
         }
 
         public boolean hasRequiredValues() {
+            // 필수 데이터 유무 확인함
             return weatherStatus != null
                     && !weatherStatus.isEmpty()
                     && currentTemperature != null
@@ -228,6 +233,7 @@ public class WeatherRepository {
         }
 
         public String toDisplayText() {
+            // 화면 표시용 텍스트로 변환함
             return String.format(
                     Locale.US,
                     "현재 날씨: %s\n현재 기온: %.1f℃\n최고/최저: %.1f℃ / %.1f℃\n풍속: %.1fm/s",

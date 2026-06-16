@@ -2,6 +2,7 @@ package com.sch.plancast.domain;
 
 import com.sch.plancast.data.local.ScheduleEntity;
 
+// 일정과 예보 비교를 통한 최종 위험 분석 결과 데이터 클래스
 public class ForecastScheduleRiskResult {
 
     private final ScheduleEntity schedule;
@@ -60,14 +61,17 @@ public class ForecastScheduleRiskResult {
         return windSpeed;
     }
 
+    // 위험 발생 여부 반환함
     public boolean hasRisk() {
         return hasRisk;
     }
 
+    // 종합된 위험 메시지 반환함
     public String getRiskMessage() {
         return riskMessage;
     }
 
+    // 종합된 추천 준비물 반환함
     public String getRecommendedItems() {
         return recommendedItems;
     }

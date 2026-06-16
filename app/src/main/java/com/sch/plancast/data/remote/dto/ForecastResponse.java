@@ -8,12 +8,11 @@ import java.util.List;
 
 public class ForecastResponse {
 
-    // OpenWeatherMap 5 Day / 3 Hour Forecast API의 예보 목록입니다.
-    // 응답 JSON의 "list" 배열에는 3시간 간격 예보가 순서대로 들어옵니다.
+    // 예보 목록 데이터
     @SerializedName("list")
     private List<ForecastItem> forecastItems;
 
-    // 외부 코드가 null 체크 없이 반복문을 돌릴 수 있도록 빈 리스트를 반환합니다.
+    // 예보 리스트 반환
     public List<ForecastItem> getForecastItems() {
         if (forecastItems == null) {
             return Collections.emptyList();
@@ -21,12 +20,14 @@ public class ForecastResponse {
         return forecastItems;
     }
 
+    // 테스트용 응답 객체 생성
     public static ForecastResponse createForTest(List<ForecastItem> forecastItems) {
         ForecastResponse response = new ForecastResponse();
         response.forecastItems = forecastItems;
         return response;
     }
 
+    // 날짜로 첫 번째 예보 항목 찾음
     public ForecastItem findFirstItemByDateForTest(String date) {
         if (date == null || date.trim().isEmpty()) {
             return null;
@@ -40,6 +41,7 @@ public class ForecastResponse {
         return null;
     }
 
+    // 테스트용 예보 항목 추가
     public void addForecastItemForTest(ForecastItem forecastItem) {
         if (forecastItem == null) {
             return;
@@ -47,6 +49,7 @@ public class ForecastResponse {
         getMutableForecastItemsForTest().add(forecastItem);
     }
 
+    // 내부 리스트 초기화 및 반환
     private List<ForecastItem> getMutableForecastItemsForTest() {
         if (forecastItems == null) {
             forecastItems = new ArrayList<>();
@@ -56,20 +59,23 @@ public class ForecastResponse {
 
     public static class ForecastItem {
 
-        // Unix timestamp입니다. 예보 시점을 초 단위 숫자로 받을 때 사용합니다.
+        // 예보 시점 타임스탬프
         @SerializedName("dt")
         private Long dt;
 
-        // 사람이 읽기 쉬운 예보 시간 문자열입니다. 예: "2026-06-14 12:00:00"
+        // 예보 시간 문자열
         @SerializedName("dt_txt")
         private String dateTimeText;
 
+        // 기온 정보 객체
         @SerializedName("main")
         private Main main;
 
+        // 날씨 상태 리스트
         @SerializedName("weather")
         private List<Weather> weather;
 
+        // 풍속 정보 객체
         @SerializedName("wind")
         private Wind wind;
 
@@ -85,24 +91,29 @@ public class ForecastResponse {
             return getDateTimeText();
         }
 
+        // 현재 기온 반환
         public Double getTemperature() {
             return main == null ? null : main.temperature;
         }
 
+        // 주요 날씨 상태 반환
         public String getWeatherMain() {
             Weather firstWeather = getFirstWeather();
             return firstWeather == null ? "" : safeString(firstWeather.main);
         }
 
+        // 날씨 상세 설명 반환
         public String getDescription() {
             Weather firstWeather = getFirstWeather();
             return firstWeather == null ? "" : safeString(firstWeather.description);
         }
 
+        // 풍속 반환
         public Double getWindSpeed() {
             return wind == null ? null : wind.speed;
         }
 
+        // 테스트용 항목 생성
         public static ForecastItem createForTest(
                 String dateTimeText,
                 String weatherMain,
@@ -129,6 +140,7 @@ public class ForecastResponse {
             return forecastItem;
         }
 
+        // 테스트용 비 예보 생성함
         public static ForecastItem createRainItemForTest(String date) {
             return createForTest(
                     date + " 12:00:00",
@@ -139,6 +151,7 @@ public class ForecastResponse {
             );
         }
 
+        // 테스트용 비 정보 적용함
         public void applyFakeRainForTest() {
             if (main == null) {
                 main = new Main();
@@ -159,13 +172,14 @@ public class ForecastResponse {
             wind.speed = 2.0;
         }
 
+        // 동일 날짜 여부 확인함
         public boolean isSameDateForTest(String date) {
             return !safeString(date).isEmpty()
                     && !safeString(dateTimeText).isEmpty()
                     && dateTimeText.startsWith(date + " ");
         }
 
-        // weather 배열이 비어 있거나 null이어도 앱이 죽지 않도록 첫 항목을 안전하게 꺼냅니다.
+        // 첫 번째 날씨 객체 안전하게 반환함
         private Weather getFirstWeather() {
             if (weather == null || weather.isEmpty()) {
                 return null;
@@ -173,28 +187,30 @@ public class ForecastResponse {
             return weather.get(0);
         }
 
+        // null 방지 문자열 처리함
         private String safeString(String value) {
             return value == null ? "" : value;
         }
     }
 
     public static class Main {
-
+        // 기온 데이터임
         @SerializedName("temp")
         private Double temperature;
     }
 
     public static class Weather {
-
+        // 날씨 상태 코드임
         @SerializedName("main")
         private String main;
 
+        // 날씨 설명 문자열임
         @SerializedName("description")
         private String description;
     }
 
     public static class Wind {
-
+        // 풍속 데이터임
         @SerializedName("speed")
         private Double speed;
     }

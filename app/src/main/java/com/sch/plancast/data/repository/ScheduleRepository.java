@@ -16,6 +16,8 @@ import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+// Room DB 일정 접근을 담당하는 Repository 클래스임.
+// 모든 DB 작업은 백그라운드 스레드에서 실행하고 결과만 메인 스레드 callback으로 전달한다.
 public class ScheduleRepository {
 
     private static final String TAG = "ScheduleRepository";
@@ -70,6 +72,8 @@ public class ScheduleRepository {
         executeRead(() -> scheduleDao.getById(id), callback);
     }
 
+    // 오늘부터 향후 5일 이내의 야외 일정만 조회함.
+    // 위험 날씨 알림은 실내 일정이 아니라 야외 일정만 대상으로 하므로 별도 메서드로 분리했다.
     public void getOutdoorSchedulesWithinFiveDays(RepositoryCallback<List<ScheduleEntity>> callback) {
         String startDate = getTodayDateString();
         String endDate = getDateAfterDaysString(OUTDOOR_LOOKAHEAD_DAYS);
@@ -109,6 +113,7 @@ public class ScheduleRepository {
         // 백그라운드에서 삽입 실행하고 메인 스레드로 결과 보냄
         executorService.execute(() -> {
             try {
+                // Room insert가 반환한 실제 id를 Entity에 반영해야 알림 PendingIntent requestCode로 사용할 수 있다.
                 long insertedId = scheduleDao.insert(schedule);
                 schedule.setId((int) insertedId);
                 postSuccess(callback, null);

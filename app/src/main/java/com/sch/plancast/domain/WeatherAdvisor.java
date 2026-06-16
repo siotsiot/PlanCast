@@ -6,12 +6,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+// 날씨 값만 받아 위험 요소와 추천 준비물을 판단하는 규칙 기반 도메인 클래스임.
+// AI API를 호출하지 않고 현재 날씨 화면과 Forecast 일정 매칭 로직에서 공통으로 사용한다.
 public class WeatherAdvisor {
 
     private static final String DEFAULT_RISK_MESSAGE = "특별한 날씨 위험 요소가 없습니다.";
     private static final String DEFAULT_RECOMMENDATION = "기본 준비물만 챙기면 됩니다.";
 
-    // 날씨 데이터를 기반으로 위험 요소와 준비물을 판단함
+    // 날씨 데이터를 기반으로 위험 요소와 준비물을 판단함.
+    // null 값이 들어와도 앱이 종료되지 않도록 문자열과 숫자를 안전하게 검사한다.
     public WeatherAdviceResult advise(
             String weatherMain,
             String description,
@@ -21,6 +24,7 @@ public class WeatherAdvisor {
         List<String> riskMessages = new ArrayList<>();
         Set<String> recommendedItems = new LinkedHashSet<>();
 
+        // weather main과 description을 합쳐 한글/영문 키워드를 대소문자와 무관하게 검사한다.
         String combinedWeatherText = normalize(weatherMain) + " " + normalize(description);
 
         // 비, 눈, 뇌우 여부 확인하여 준비물 추천함
@@ -57,10 +61,12 @@ public class WeatherAdvisor {
             addItems(recommendedItems, "고정이 잘 되는 우산", "바람막이");
         }
 
+        // 위험 조건이 하나도 없으면 기본 안내 문구를 반환한다.
         if (riskMessages.isEmpty()) {
             return new WeatherAdviceResult(DEFAULT_RISK_MESSAGE, DEFAULT_RECOMMENDATION, false);
         }
 
+        // 여러 위험 요소가 동시에 감지되면 메시지와 준비물을 함께 보여준다.
         return new WeatherAdviceResult(
                 joinMessages(riskMessages),
                 joinItems(recommendedItems),

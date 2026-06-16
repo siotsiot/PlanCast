@@ -6,6 +6,7 @@ import android.app.TimePickerDialog;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -33,12 +34,14 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
-// 일정 등록 및 수정 화면을 담당함
+// 일정 등록 및 수정 화면을 담당함.
+// Room DB 저장 후 일정 시작 전 알림 예약까지 연결하는 화면이다.
 public class ScheduleFormActivity extends AppCompatActivity {
 
     public static final String EXTRA_SCHEDULE_ID = "com.sch.plancast.EXTRA_SCHEDULE_ID";
     public static final String EXTRA_DATE = "com.sch.plancast.EXTRA_DATE";
 
+    private static final String TAG = "PlanCastScheduleAlarm";
     private static final int NEW_SCHEDULE_ID = -1;
 
     private ScheduleRepository scheduleRepository;
@@ -189,6 +192,8 @@ public class ScheduleFormActivity extends AppCompatActivity {
         }
 
         String memo = memoEditText.getText().toString().trim();
+        // 활동 유형은 일정 저장 값으로 사용한다.
+        // 일정 시작 전 알림은 실내/야외 모두 대상이고, 위험 날씨 판단은 야외 일정만 대상으로 한다.
         String activityType = activityTypeRadioGroup.getCheckedRadioButtonId() == R.id.outdoorRadioButton
                 ? ScheduleEntity.ACTIVITY_TYPE_OUTDOOR
                 : ScheduleEntity.ACTIVITY_TYPE_INDOOR;
@@ -219,13 +224,15 @@ public class ScheduleFormActivity extends AppCompatActivity {
         }
     }
 
-    // 데이터베이스에 새 일정 삽입함
+    // 데이터베이스에 새 일정 삽입함.
+    // Room insert 후 Repository가 실제 scheduleId를 Entity에 반영하므로, 그 id로 알림 requestCode를 만든다.
     private void insertSchedule(ScheduleEntity schedule) {
         scheduleRepository.insert(schedule, new ScheduleRepository.RepositoryCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
                 runOnUiThread(() -> {
-                    scheduleOutdoorNotificationIfNeeded(schedule);
+                    Log.d(TAG, "일정 저장 성공: insert, id=" + schedule.getId());
+                    schedulePlanAlarmForSavedSchedule(schedule);
                     Toast.makeText(ScheduleFormActivity.this, "일정이 저장되었습니다", Toast.LENGTH_SHORT).show();
                     setResult(RESULT_OK);
                     finish();
@@ -243,14 +250,16 @@ public class ScheduleFormActivity extends AppCompatActivity {
         });
     }
 
-    // 데이터베이스 일정 정보 갱신함
+    // 데이터베이스 일정 정보 갱신함.
+    // 수정 시 기존 알림을 먼저 취소한 뒤 변경된 날짜/시간 기준으로 다시 예약한다.
     private void updateSchedule(ScheduleEntity schedule) {
         scheduleRepository.update(schedule, new ScheduleRepository.RepositoryCallback<Void>() {
             @Override
             public void onSuccess(Void result) {
                 runOnUiThread(() -> {
+                    Log.d(TAG, "일정 저장 성공: update, id=" + schedule.getId());
                     alarmScheduler.cancelNotification(ScheduleFormActivity.this, schedule.getId());
-                    scheduleOutdoorNotificationIfNeeded(schedule);
+                    schedulePlanAlarmForSavedSchedule(schedule);
                     Toast.makeText(ScheduleFormActivity.this, "일정이 수정되었습니다", Toast.LENGTH_SHORT).show();
                     setResult(RESULT_OK);
                     finish();
@@ -283,7 +292,8 @@ public class ScheduleFormActivity extends AppCompatActivity {
                 .show();
     }
 
-    // 데이터베이스에서 일정 삭제함
+    // 데이터베이스에서 일정 삭제함.
+    // 삭제된 일정의 시작 전 알림이 남지 않도록 같은 scheduleId의 PendingIntent도 취소한다.
     private void deleteSchedule() {
         scheduleRepository.delete(editingSchedule, new ScheduleRepository.RepositoryCallback<Void>() {
             @Override
@@ -307,17 +317,41 @@ public class ScheduleFormActivity extends AppCompatActivity {
         });
     }
 
-    // 야외 활동일 경우 알림 예약함
-    private void scheduleOutdoorNotificationIfNeeded(ScheduleEntity schedule) {
-        if (ScheduleEntity.ACTIVITY_TYPE_OUTDOOR.equals(schedule.getActivityType())) {
-            alarmScheduler.scheduleNotification(this, schedule);
-            if (!hasNotificationPermission()) {
-                Toast.makeText(
-                        this,
-                        "알림 권한이 없어 예약 알림이 표시되지 않을 수 있습니다.",
-                        Toast.LENGTH_LONG
-                ).show();
-            }
+    // 일정 시작 전 리마인더는 실내/야외 일정 모두 예약함.
+    // 위험 날씨 알림은 DailyWeatherCheckReceiver에서 야외 일정만 별도로 검사하므로, 두 기능을 분리해 둠.
+    private void schedulePlanAlarmForSavedSchedule(ScheduleEntity schedule) {
+        if (schedule == null) {
+            Log.w(TAG, "schedulePlanAlarm 호출 여부: false, schedule=null");
+            return;
+        }
+
+        Log.d(TAG, "schedulePlanAlarm 호출 여부: true");
+        Log.d(
+                TAG,
+                "scheduleId=" + schedule.getId()
+                        + ", title=" + schedule.getTitle()
+                        + ", date=" + schedule.getDate()
+                        + ", time=" + schedule.getTime()
+                        + ", activityType=" + schedule.getActivityType()
+        );
+
+        // 실내/야외 일정 모두 일정 시작 30분 전 리마인더 대상이다.
+        alarmScheduler.schedulePlanAlarm(this, schedule);
+
+        if (!hasNotificationPermission()) {
+            Toast.makeText(
+                    this,
+                    "알림 권한이 없어 예약 알림이 표시되지 않을 수 있습니다.",
+                    Toast.LENGTH_LONG
+            ).show();
+        }
+
+        if (!alarmScheduler.canScheduleExactAlarms(this)) {
+            Toast.makeText(
+                    this,
+                    "정확한 알람 권한이 꺼져 있으면 일정 알림이 조금 늦을 수 있습니다.",
+                    Toast.LENGTH_LONG
+            ).show();
         }
     }
 

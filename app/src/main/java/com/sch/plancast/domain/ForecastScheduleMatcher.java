@@ -15,7 +15,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-// 일정과 날씨 예보를 비교하여 위험도를 판단함
+// 일정과 날씨 예보를 비교하여 위험도를 판단함.
+// OpenWeatherMap 3시간 단위 예보 중 일정 날짜에 포함된 모든 항목을 검사한다.
 public class ForecastScheduleMatcher {
 
     private static final String TAG = "ForecastScheduleMatcher";
@@ -28,7 +29,8 @@ public class ForecastScheduleMatcher {
         weatherAdvisor = new WeatherAdvisor();
     }
 
-    // 야외 일정 중 날씨 위험이 있는 일정을 찾아 리스트로 반환함
+    // 야외 일정 중 날씨 위험이 있는 일정을 찾아 리스트로 반환함.
+    // 위험 날씨 알림은 실내 일정이 아니라 야외 일정만 대상으로 한다.
     public List<ForecastScheduleRiskResult> findRiskyOutdoorSchedules(
             List<ScheduleEntity> schedules,
             ForecastResponse forecastResponse
@@ -44,7 +46,8 @@ public class ForecastScheduleMatcher {
         }
         List<ForecastScheduleRiskResult> riskyResults = new ArrayList<>();
 
-        // 모든 일정을 순회하며 야외 일정의 날씨 위험도 확인함
+        // 모든 일정을 순회하며 야외 일정의 날씨 위험도 확인함.
+        // 시간 하나만 가장 가깝게 매칭하지 않고, 해당 날짜의 전체 Forecast list를 확인한다.
         for (ScheduleEntity schedule : schedules) {
             if (!isOutdoorSchedule(schedule)) {
                 continue;
@@ -54,7 +57,8 @@ public class ForecastScheduleMatcher {
                 continue;
             }
 
-            // 특정 날짜의 모든 시간대 예보를 분석하여 결과 생성함
+            // 특정 날짜의 모든 시간대 예보를 분석하여 결과 생성함.
+            // 같은 날짜에 비, 눈, 뇌우, 폭염, 한파, 강풍 중 하나라도 있으면 위험 일정으로 본다.
             ForecastScheduleRiskResult result = createDailyRiskResult(schedule, forecastItems);
             if (result != null && result.hasRisk()) {
                 riskyResults.add(result);
@@ -76,7 +80,8 @@ public class ForecastScheduleMatcher {
                 && ScheduleEntity.ACTIVITY_TYPE_OUTDOOR.equals(schedule.getActivityType());
     }
 
-    // 특정 일정 날짜의 예보들을 종합하여 위험 분석 결과를 생성함
+    // 특정 일정 날짜의 예보들을 종합하여 위험 분석 결과를 생성함.
+    // Forecast API의 3시간 단위 list를 날짜 기준으로 훑어 위험 메시지와 준비물을 합친다.
     private ForecastScheduleRiskResult createDailyRiskResult(
             ScheduleEntity schedule,
             List<ForecastResponse.ForecastItem> forecastItems
@@ -90,7 +95,8 @@ public class ForecastScheduleMatcher {
         Set<String> recommendedItems = new LinkedHashSet<>();
 
         for (ForecastResponse.ForecastItem forecastItem : forecastItems) {
-            // 일정 날짜와 예보 날짜가 일치하는지 확인함
+            // 일정 날짜와 예보 날짜가 일치하는지 확인함.
+            // 발표용 로직에서는 일정 시간보다 날짜 일치 여부를 우선으로 본다.
             if (!isSameScheduleDate(schedule.getDate(), forecastItem)) {
                 continue;
             }

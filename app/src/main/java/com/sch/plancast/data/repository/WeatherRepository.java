@@ -16,6 +16,8 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
+// OpenWeatherMap API 호출을 감싸는 Repository 클래스임.
+// Activity나 Receiver는 Retrofit을 직접 다루지 않고 이 클래스를 통해 결과만 전달받는다.
 public class WeatherRepository {
 
     private static final String TAG = "WeatherRepository";
@@ -29,6 +31,8 @@ public class WeatherRepository {
         openWeatherApi = RetrofitClient.getInstance().create(OpenWeatherApi.class);
     }
 
+    // 현재 위치의 현재 날씨를 조회함.
+    // API Key 누락, HTTP 오류, 네트워크 실패, null 응답을 사용자 안내 문구로 변환한다.
     public void getCurrentWeather(double latitude, double longitude, WeatherCallback callback) {
         if (callback == null) {
             return;
@@ -78,6 +82,8 @@ public class WeatherRepository {
         });
     }
 
+    // 현재 위치의 5일 예보를 조회함.
+    // OpenWeatherMap Forecast API는 3시간 단위 예보 list를 반환한다.
     public void getForecast(double latitude, double longitude, ForecastCallback callback) {
         if (callback == null) {
             return;
@@ -89,7 +95,8 @@ public class WeatherRepository {
             return;
         }
 
-        // 5일 일기 예보 데이터 요청함
+        // 5일 일기 예보 데이터 요청함.
+        // Current Weather API와 같은 RetrofitClient를 재사용하되 endpoint만 forecast로 다르다.
         openWeatherApi.getForecast(
                 latitude,
                 longitude,
@@ -149,6 +156,7 @@ public class WeatherRepository {
         void onError(String errorMessage);
     }
 
+    // WeatherResponse DTO를 화면과 도메인 로직에서 쓰기 쉬운 형태로 변환한 객체임.
     public static class WeatherInfo {
 
         private final String weatherStatus;

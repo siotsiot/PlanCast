@@ -18,7 +18,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-// 매일 정해진 시간에 날씨와 일정을 비교하여 알림을 보냄
+// 매일 정해진 시간에 날씨와 야외 일정을 비교하여 위험 날씨 알림을 보냄.
+// 위험 날씨 알림은 실내 일정이 아니라 향후 5일 이내 야외 일정만 대상으로 한다.
 public class DailyWeatherCheckReceiver extends BroadcastReceiver {
 
     public static final String ACTION_DAILY_WEATHER_CHECK = "com.sch.plancast.action.DAILY_WEATHER_CHECK";
@@ -39,7 +40,12 @@ public class DailyWeatherCheckReceiver extends BroadcastReceiver {
     private static final String TEST_NOTIFICATION_CONTENT =
             "테스트 모드: 예정된 야외 일정 날짜에 위험 날씨가 예보된 상황을 가정했습니다.";
 
+    // 발표/개발 검증용 강제 알림 플래그이며, 최종 제출 전 false 권장.
+    // true이면 DB/위치/API/Matcher를 거치지 않고 Receiver 실행 직후 테스트 알림만 표시한다.
     private static final boolean DEBUG_FORCE_NOTIFICATION_ONLY = false;
+
+    // 발표/개발 검증용 가짜 비 예보 플래그이며, 최종 제출 전 false 권장.
+    // true이면 실제 Forecast API 응답 list 중 야외 일정 날짜의 예보 항목을 Rain으로 변경한 뒤 Matcher를 통과시킨다.
     private static final boolean DEBUG_USE_FAKE_RAIN_FORECAST = true;
 
     // 브로드캐스트 수신 시 실행됨
@@ -53,11 +59,13 @@ public class DailyWeatherCheckReceiver extends BroadcastReceiver {
             Log.d(TAG, "Receiver 실행됨");
 
             if (DEBUG_FORCE_NOTIFICATION_ONLY) {
-                // 테스트용 강제 알림 모드임
+                // 테스트용 강제 알림 모드임.
+                // 알림 시스템 자체를 빠르게 확인할 때만 사용하고, 일정/예보 매칭 검증은 아래 fake rain 모드를 사용한다.
                 showDebugRiskNotification(appContext, pendingResult, isFinished);
                 return;
             }
-            // 야외 일정 날씨 체크 시작함
+            // 야외 일정 날씨 체크 시작함.
+            // 이 경로는 Room 야외 일정 조회, 저장된 위치, Forecast API, Matcher를 모두 거친다.
             checkOutdoorScheduleWeather(appContext, pendingResult, isFinished);
         } catch (Exception exception) {
             Log.w(TAG, "Daily weather check failed before async work started.", exception);
@@ -85,7 +93,8 @@ public class DailyWeatherCheckReceiver extends BroadcastReceiver {
         }
     }
 
-    // DB에서 야외 일정을 조회함
+    // DB에서 야외 일정을 조회함.
+    // 위험 날씨 알림은 야외 일정만 대상으로 하므로 Repository에서도 야외 일정만 가져온다.
     private void checkOutdoorScheduleWeather(
             Context context,
             PendingResult pendingResult,
@@ -132,7 +141,8 @@ public class DailyWeatherCheckReceiver extends BroadcastReceiver {
         });
     }
 
-    // 날씨 예보를 가져와 위험 여부 판단함
+    // 날씨 예보를 가져와 위험 여부 판단함.
+    // 실제 운영 로직은 Forecast API 응답을 그대로 사용하고, 테스트 플래그가 켜진 경우에만 list를 수정한다.
     private void fetchForecastAndNotifyIfRisky(
             Context context,
             List<ScheduleEntity> schedules,
@@ -146,7 +156,8 @@ public class DailyWeatherCheckReceiver extends BroadcastReceiver {
             @Override
             public void onSuccess(ForecastResponse forecastResponse) {
                 if (DEBUG_USE_FAKE_RAIN_FORECAST) {
-                    // 테스트를 위해 비 예보를 강제로 주입함
+                    // 테스트를 위해 비 예보를 강제로 주입함.
+                    // 가짜 응답 전체를 만들지 않고 실제 ForecastResponse.list 중 야외 일정 날짜의 항목만 Rain으로 바꾼다.
                     applyFakeRainForScheduleDates(schedules, forecastResponse);
                 }
 
@@ -167,7 +178,8 @@ public class DailyWeatherCheckReceiver extends BroadcastReceiver {
         });
     }
 
-    // 분석 결과에 따라 알림을 보냄
+    // 분석 결과에 따라 알림을 보냄.
+    // ForecastScheduleMatcher가 야외 일정 날짜 전체의 위험 예보를 찾으면 한 번만 알림을 표시한다.
     private void handleForecastResult(
             Context context,
             List<ScheduleEntity> schedules,
@@ -203,7 +215,8 @@ public class DailyWeatherCheckReceiver extends BroadcastReceiver {
         }
     }
 
-    // 테스트용 비 예보 생성함
+    // 테스트용 비 예보 생성함.
+    // 실제 Forecast API 응답 list를 유지한 채 야외 일정 날짜와 같은 예보만 Rain으로 변경해 Matcher 흐름을 검증한다.
     private void applyFakeRainForScheduleDates(
             List<ScheduleEntity> schedules,
             ForecastResponse forecastResponse

@@ -14,7 +14,8 @@ import com.sch.plancast.data.local.ScheduleEntity;
 import java.util.ArrayList;
 import java.util.List;
 
-// 일정 목록을 리사이클러뷰에 표시함
+// 일정 목록을 리사이클러뷰에 표시함.
+// 선택한 날짜의 Room DB 일정 목록을 보여주고, 항목 클릭 시 수정 화면으로 이동시킨다.
 public class ScheduleAdapter extends RecyclerView.Adapter<ScheduleAdapter.ScheduleViewHolder> {
 
     private static final int MEMO_PREVIEW_LIMIT = 40;
@@ -36,7 +37,8 @@ public class ScheduleAdapter extends RecyclerView.Adapter<ScheduleAdapter.Schedu
 
     @Override
     public void onBindViewHolder(@NonNull ScheduleViewHolder holder, int position) {
-        // 데이터를 뷰홀더에 바인딩함
+        // 데이터를 뷰홀더에 바인딩함.
+        // 실내/야외 구분은 목록 표시용 텍스트로 바꾸되 Entity 값은 그대로 유지한다.
         ScheduleEntity schedule = schedules.get(position);
         holder.bind(schedule);
     }

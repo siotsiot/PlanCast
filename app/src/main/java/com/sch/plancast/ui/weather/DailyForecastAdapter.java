@@ -14,7 +14,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-// 5일 날씨 예보 목록을 리사이클러뷰에 표시함
+// 5일 날씨 예보 목록을 리사이클러뷰에 표시함.
+// MainActivity에서 3시간 단위 Forecast list를 날짜별로 그룹화한 결과를 화면에 바인딩한다.
 public class DailyForecastAdapter extends RecyclerView.Adapter<DailyForecastAdapter.ForecastViewHolder> {
 
     private final List<DailyForecastItem> forecastItems = new ArrayList<>();
@@ -39,7 +40,8 @@ public class DailyForecastAdapter extends RecyclerView.Adapter<DailyForecastAdap
 
     @Override
     public void onBindViewHolder(@NonNull ForecastViewHolder holder, int position) {
-        // 데이터를 뷰홀더에 바인딩하여 화면에 표시함
+        // 데이터를 뷰홀더에 바인딩하여 화면에 표시함.
+        // 최고/최저 기온은 Current Weather API 값이 아니라 날짜별 Forecast list에서 계산된 값이다.
         DailyForecastItem item = forecastItems.get(position);
         holder.dateTextView.setText(item.getDate());
         holder.dayTextView.setText(item.getDayOfWeek());

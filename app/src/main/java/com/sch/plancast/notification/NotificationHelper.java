@@ -14,10 +14,11 @@ import androidx.core.content.ContextCompat;
 
 import com.sch.plancast.R;
 
-// 시스템 알림 표시를 도와주는 유틸리티 클래스임
+// 시스템 알림 표시를 도와주는 유틸리티 클래스임.
+// 일정 시작 전 알림과 위험 날씨 알림이 같은 채널/표시 로직을 재사용한다.
 public class NotificationHelper {
 
-    private static final String TAG = "PlanCastWeatherCheck";
+    private static final String TAG = "PlanCastNotification";
     public static final String CHANNEL_ID = "plancast_schedule_channel";
     private static final String CHANNEL_NAME = "PlanCast 일정 알림";
     private static final String CHANNEL_DESCRIPTION = "야외 일정 시작 전 알림";
@@ -26,12 +27,14 @@ public class NotificationHelper {
 
     public NotificationHelper(Context context) {
         this.context = context.getApplicationContext();
-        // 채널 초기화함
+        // 채널 초기화함.
+        // Android 8.0 이상에서는 채널이 있어야 상단바 알림이 표시된다.
         createNotificationChannel();
     }
 
     // 시스템 상단바에 알림을 표시함
     public boolean showNotification(int notificationId, String title, String content) {
+        // Android 13 이상에서 알림 권한이 없으면 앱이 종료되지 않도록 표시만 중단한다.
         if (!hasNotificationPermission()) {
             Log.w(TAG, "알림 표시 중단: POST_NOTIFICATIONS 권한이 없습니다.");
             return false;

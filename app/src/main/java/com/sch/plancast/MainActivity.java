@@ -50,6 +50,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+// 앱의 메인 화면을 담당하며 날씨 탭과 일정 탭을 연결한다.
+// 위치 조회, 현재 날씨, 5일 예보, 일정 목록 표시, 테스트 알림 예약 진입점을 관리한다.
 public class MainActivity extends AppCompatActivity {
 
     private static final String WEATHER_CHECK_TAG = "PlanCastWeatherCheck";
@@ -150,7 +152,8 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        // 테스트 알림 실행 버튼 설정함
+        // 위험 날씨 테스트 알림 버튼 설정함.
+        // 발표/QA 시 실제 Forecast API 응답 list를 받은 뒤 야외 일정 날짜의 예보를 Rain으로 바꾸는 경로를 검증한다.
         Button testNotificationButton = findViewById(R.id.testNotificationButton);
         testNotificationButton.setOnClickListener(view -> {
             Log.d(WEATHER_CHECK_TAG, "테스트 알림 예약 버튼 클릭됨");
@@ -168,6 +171,8 @@ public class MainActivity extends AppCompatActivity {
         setupBottomNavigation();
         updateSelectedDateLabel();
         checkLocationPermissionAndLoadLocation();
+
+        // 위험 날씨 알림은 야외 일정만 대상으로 하며, 매일 아침 자동 체크 알람으로 실행된다.
         new AlarmScheduler().scheduleDailyWeatherCheck(this);
     }
 
@@ -309,7 +314,8 @@ public class MainActivity extends AppCompatActivity {
         ).show();
     }
 
-    // 현재 기기 위치 및 날씨 정보 불러옴
+    // 현재 기기 위치 및 날씨 정보 불러옴.
+    // 위치 조회에 성공하면 백그라운드 위험 날씨 체크에서 사용할 마지막 위치도 함께 저장한다.
     private void loadCurrentLocation() {
         locationStatusTextView.setText("📍 위치 확인 중...");
         weatherInfoTextView.setText("현재 위치를 확인한 뒤 날씨를 불러옵니다.");
@@ -342,7 +348,8 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // 마지막 위치 정보 저장함
+    // 마지막 위치 정보 저장함.
+    // Receiver에서는 권한 팝업을 띄울 수 없으므로, 마지막으로 확인된 좌표를 SharedPreferences에서 읽어 사용한다.
     private void saveLastLocation(double latitude, double longitude) {
         SharedPreferences sharedPreferences = getSharedPreferences(
                 DailyWeatherCheckReceiver.WEATHER_PREFS_NAME,
@@ -380,7 +387,8 @@ public class MainActivity extends AppCompatActivity {
         return "📍 위치 확인 중...";
     }
 
-    // 현재 날씨 API 호출함
+    // 현재 날씨 API 호출함.
+    // 현재 날씨 카드는 temp_min/temp_max 대신 현재 기온과 풍속 중심으로 표시한다.
     private void loadCurrentWeather(double latitude, double longitude) {
         weatherInfoTextView.setText("현재 날씨를 불러오고 있습니다.");
         weatherRepository.getCurrentWeather(latitude, longitude, new WeatherRepository.WeatherCallback() {
@@ -413,7 +421,8 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // 5일 일기 예보 API 호출함
+    // 5일 일기 예보 API 호출함.
+    // OpenWeatherMap Forecast API는 3시간 단위 list를 제공하므로 화면 표시 전 날짜별 요약으로 변환한다.
     private void loadForecast(double latitude, double longitude) {
         showForecastLoading();
         weatherRepository.getForecast(latitude, longitude, new WeatherRepository.ForecastCallback() {
@@ -438,12 +447,14 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // 예보 데이터를 날짜별 요약 항목으로 변환함
+    // 예보 데이터를 날짜별 요약 항목으로 변환함.
+    // 3시간 단위 Forecast list를 날짜별로 그룹화한 뒤 각 날짜의 최고/최저 기온을 직접 계산한다.
     private List<DailyForecastItem> createDailyForecastItems(ForecastResponse forecastResponse) {
         if (forecastResponse == null) {
             return Collections.emptyList();
         }
 
+        // LinkedHashMap을 사용해 API 응답 순서대로 날짜 그룹을 유지한다.
         Map<String, DailyForecastSummary> dailySummaries = new LinkedHashMap<>();
         for (ForecastResponse.ForecastItem forecastItem : forecastResponse.getForecastItems()) {
             String date = extractForecastDate(forecastItem);
@@ -499,7 +510,8 @@ public class MainActivity extends AppCompatActivity {
         ).hasRisk();
     }
 
-    // 대표 예보 항목을 교체해야 하는지 판단함
+    // 대표 예보 항목을 교체해야 하는지 판단함.
+    // 위험 예보가 있으면 우선 표시하고, 위험도가 같으면 정오에 가까운 예보를 대표값으로 사용한다.
     private boolean shouldReplaceRepresentative(
             ForecastResponse.ForecastItem candidate,
             boolean candidateHasRisk,
@@ -578,7 +590,8 @@ public class MainActivity extends AppCompatActivity {
         return String.format(Locale.US, "풍속 %.1fm/s", windSpeed);
     }
 
-    // 날씨 조언 UI 갱신함
+    // 날씨 조언 UI 갱신함.
+    // 현재 날씨 화면의 위험 안내는 WeatherAdvisor의 규칙 기반 판단 결과를 사용한다.
     private void updateWeatherAdvice(WeatherRepository.WeatherInfo weatherInfo) {
         WeatherAdviceResult adviceResult = weatherAdvisor.advise(
                 weatherInfo.getWeatherMain(),
@@ -631,7 +644,8 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
-    // 선택된 날짜의 일정 목록 로드함
+    // 선택된 날짜의 일정 목록 로드함.
+    // Room DB 조회는 Repository를 통해 백그라운드에서 실행하고, 결과만 UI 스레드에 반영한다.
     private void loadSchedulesBySelectedDate() {
         String requestedDate = selectedDate;
         scheduleRepository.getByDate(requestedDate, new ScheduleRepository.RepositoryCallback<List<ScheduleEntity>>() {
@@ -667,7 +681,8 @@ public class MainActivity extends AppCompatActivity {
         return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date(timeMillis));
     }
 
-    // 일일 예보 요약을 관리하는 내부 클래스임
+    // 일일 예보 요약을 관리하는 내부 클래스임.
+    // 하루에 여러 개 들어오는 3시간 예보를 하나의 5일 예보 카드 데이터로 모은다.
     private class DailyForecastSummary {
 
         private final String date;
@@ -682,7 +697,8 @@ public class MainActivity extends AppCompatActivity {
             this.date = date;
         }
 
-        // 특정 시간대의 예보 데이터 추가함
+        // 특정 시간대의 예보 데이터 추가함.
+        // 같은 날짜의 모든 예보를 누적해 최고/최저 기온, 최대 풍속, 위험 여부를 계산한다.
         void add(ForecastResponse.ForecastItem forecastItem) {
             Double temperature = forecastItem.getTemperature();
             if (temperature != null) {

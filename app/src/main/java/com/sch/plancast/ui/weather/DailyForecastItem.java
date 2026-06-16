@@ -1,5 +1,6 @@
 package com.sch.plancast.ui.weather;
 
+// 5일 예보 리스트의 개별 항목 데이터를 담는 모델임
 public class DailyForecastItem {
 
     private final String date;

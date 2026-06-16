@@ -14,6 +14,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
 
+// 알람 매니저를 통해 일정을 예약함
 public class AlarmScheduler {
 
     private static final String TAG = "PlanCastWeatherCheck";
@@ -24,6 +25,7 @@ public class AlarmScheduler {
     private static final int DAILY_WEATHER_CHECK_MINUTE = 0;
     private static final int DAILY_WEATHER_CHECK_TEST_DELAY_MINUTES = 1;
 
+    // 특정 일정에 대한 알림 예약함
     public void scheduleNotification(Context context, ScheduleEntity schedule) {
         if (context == null || schedule == null || schedule.getId() <= 0) {
             return;
@@ -34,6 +36,7 @@ public class AlarmScheduler {
             return;
         }
 
+        // 일정 시간 30분 전으로 설정함
         triggerTime.add(Calendar.MINUTE, -NOTIFICATION_LEAD_MINUTES);
         if (triggerTime.getTimeInMillis() <= System.currentTimeMillis()) {
             return;
@@ -50,6 +53,7 @@ public class AlarmScheduler {
                 PendingIntent.FLAG_UPDATE_CURRENT
         );
 
+        // 절전 모드에서도 동작하도록 예약함
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             alarmManager.setAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP,
@@ -65,6 +69,7 @@ public class AlarmScheduler {
         }
     }
 
+    // 예약된 알림 취소함
     public void cancelNotification(Context context, int scheduleId) {
         if (context == null || scheduleId <= 0) {
             return;
@@ -93,6 +98,7 @@ public class AlarmScheduler {
         pendingIntent.cancel();
     }
 
+    // 매일 정해진 시간에 날씨 체크 알람 예약함
     public void scheduleDailyWeatherCheck(Context context) {
         if (context == null) {
             return;
@@ -106,8 +112,7 @@ public class AlarmScheduler {
         PendingIntent pendingIntent = createDailyWeatherCheckPendingIntent(context);
         Calendar triggerTime = getNextDailyWeatherCheckTime();
 
-        // 매일 오전 8시쯤 실행되는 반복 알람입니다.
-        // 정확한 초 단위 실행이 필요하지 않으므로 exact alarm 권한이 필요한 API는 사용하지 않습니다.
+        // 매일 반복되는 알람 설정함
         alarmManager.setInexactRepeating(
                 AlarmManager.RTC_WAKEUP,
                 triggerTime.getTimeInMillis(),
@@ -116,6 +121,7 @@ public class AlarmScheduler {
         );
     }
 
+    // 테스트용 즉시 날씨 체크 알람 예약함
     public void scheduleDailyWeatherCheckForTest(Context context) {
         if (context == null) {
             Log.w(TAG, "테스트 날씨 체크 알림 예약 실패: context가 null입니다.");
@@ -136,9 +142,6 @@ public class AlarmScheduler {
         Calendar triggerTime = Calendar.getInstance();
         triggerTime.add(Calendar.MINUTE, DAILY_WEATHER_CHECK_TEST_DELAY_MINUTES);
 
-        // 발표 시연 및 개발 검증용 1회성 알람입니다.
-        // 실제 매일 오전 8시 반복 알람과 requestCode를 분리해 서로 덮어쓰지 않도록 했습니다.
-        // Android 12 이상 exact alarm 권한 문제를 피하기 위해 setExactAndAllowWhileIdle은 사용하지 않습니다.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             alarmManager.setAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP,
@@ -162,6 +165,7 @@ public class AlarmScheduler {
         );
     }
 
+    // 알람 발생 시 실행될 PendingIntent 생성함
     private PendingIntent createPendingIntent(Context context, ScheduleEntity schedule, int flag) {
         Intent intent = new Intent(context, PlanAlarmReceiver.class);
         intent.setAction(PlanAlarmReceiver.ACTION_SCHEDULE_ALARM);
@@ -195,6 +199,7 @@ public class AlarmScheduler {
         );
     }
 
+    // 다음 날씨 체크 시간 계산함
     private Calendar getNextDailyWeatherCheckTime() {
         Calendar calendar = Calendar.getInstance();
         calendar.set(Calendar.HOUR_OF_DAY, DAILY_WEATHER_CHECK_HOUR);
@@ -215,6 +220,7 @@ public class AlarmScheduler {
         return 0;
     }
 
+    // 날짜/시간 문자열을 Calendar 객체로 변환함
     private Calendar parseScheduleTime(String date, String time) {
         if (isBlank(date) || isBlank(time)) {
             return null;

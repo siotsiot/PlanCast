@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 
+// 일정 알람 수신 시 알림을 띄움
 public class PlanAlarmReceiver extends BroadcastReceiver {
 
     public static final String ACTION_SCHEDULE_ALARM = "com.sch.plancast.action.SCHEDULE_ALARM";
@@ -15,12 +16,14 @@ public class PlanAlarmReceiver extends BroadcastReceiver {
 
     private static final String DEFAULT_TITLE = "일정";
 
+    // 알람 수신 시 호출됨
     @Override
     public void onReceive(Context context, Intent intent) {
         if (intent == null) {
             return;
         }
 
+        // 인텐트에서 데이터 추출함
         int scheduleId = intent.getIntExtra(EXTRA_SCHEDULE_ID, 0);
         String title = intent.getStringExtra(EXTRA_TITLE);
         String date = intent.getStringExtra(EXTRA_DATE);
@@ -32,6 +35,7 @@ public class PlanAlarmReceiver extends BroadcastReceiver {
         String notificationContent = scheduleTitle
                 + " 일정이 곧 시작됩니다. 야외 일정이라면 날씨와 준비물을 확인하세요.";
 
+        // 알림 생성 및 표시함
         NotificationHelper notificationHelper = new NotificationHelper(context);
         notificationHelper.showNotification(scheduleId, notificationTitle, notificationContent);
     }

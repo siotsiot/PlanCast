@@ -33,6 +33,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
+// 일정 등록 및 수정 화면을 담당함
 public class ScheduleFormActivity extends AppCompatActivity {
 
     public static final String EXTRA_SCHEDULE_ID = "com.sch.plancast.EXTRA_SCHEDULE_ID";
@@ -76,6 +77,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
             return insets;
         });
 
+        // 저장소 및 알람 스케줄러 초기화함
         scheduleRepository = new ScheduleRepository(this);
         alarmScheduler = new AlarmScheduler();
         scheduleId = getIntent().getIntExtra(EXTRA_SCHEDULE_ID, NEW_SCHEDULE_ID);
@@ -88,6 +90,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
         initViews();
         bindClickListeners();
 
+        // 수정 모드 여부에 따라 UI 설정함
         if (isEditMode()) {
             ((TextView) findViewById(R.id.formTitleTextView)).setText("일정 수정");
             deleteButton.setVisibility(View.VISIBLE);
@@ -108,6 +111,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
         }
     }
 
+    // 뷰 컴포넌트 찾아 연결함
     private void initViews() {
         titleEditText = findViewById(R.id.titleEditText);
         memoEditText = findViewById(R.id.memoEditText);
@@ -119,6 +123,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
         deleteButton = findViewById(R.id.deleteButton);
     }
 
+    // 클릭 리스너 바인딩함
     private void bindClickListeners() {
         dateButton.setOnClickListener(view -> showDatePicker());
         timeButton.setOnClickListener(view -> showTimePicker());
@@ -130,6 +135,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
         return scheduleId != NEW_SCHEDULE_ID;
     }
 
+    // 기존 일정 데이터 불러옴
     private void loadSchedule() {
         scheduleRepository.getById(scheduleId, new ScheduleRepository.RepositoryCallback<ScheduleEntity>() {
             @Override
@@ -156,6 +162,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
         });
     }
 
+    // 입력 폼에 일정 데이터 채움
     private void populateForm(ScheduleEntity schedule) {
         titleEditText.setText(schedule.getTitle());
         memoEditText.setText(schedule.getMemo());
@@ -171,6 +178,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
         updateDateTimeButtons();
     }
 
+    // 일정 저장 또는 수정 로직 실행함
     private void saveSchedule() {
         String title = titleEditText.getText().toString().trim();
         if (title.isEmpty()) {
@@ -186,6 +194,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
                 : ScheduleEntity.ACTIVITY_TYPE_INDOOR;
 
         if (isEditMode()) {
+            // 기존 일정 업데이트함
             if (editingSchedule == null) {
                 Toast.makeText(this, "일정 정보를 불러오는 중입니다", Toast.LENGTH_SHORT).show();
                 return;
@@ -197,6 +206,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
             editingSchedule.setMemo(memo);
             updateSchedule(editingSchedule);
         } else {
+            // 신규 일정 추가함
             ScheduleEntity schedule = new ScheduleEntity(
                     title,
                     selectedDate,
@@ -209,6 +219,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
         }
     }
 
+    // 데이터베이스에 새 일정 삽입함
     private void insertSchedule(ScheduleEntity schedule) {
         scheduleRepository.insert(schedule, new ScheduleRepository.RepositoryCallback<Void>() {
             @Override
@@ -232,6 +243,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
         });
     }
 
+    // 데이터베이스 일정 정보 갱신함
     private void updateSchedule(ScheduleEntity schedule) {
         scheduleRepository.update(schedule, new ScheduleRepository.RepositoryCallback<Void>() {
             @Override
@@ -256,6 +268,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
         });
     }
 
+    // 삭제 확인 다이얼로그 보여줌
     private void confirmDelete() {
         if (editingSchedule == null) {
             Toast.makeText(this, "일정 정보를 불러오는 중입니다", Toast.LENGTH_SHORT).show();
@@ -270,6 +283,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
                 .show();
     }
 
+    // 데이터베이스에서 일정 삭제함
     private void deleteSchedule() {
         scheduleRepository.delete(editingSchedule, new ScheduleRepository.RepositoryCallback<Void>() {
             @Override
@@ -293,6 +307,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
         });
     }
 
+    // 야외 활동일 경우 알림 예약함
     private void scheduleOutdoorNotificationIfNeeded(ScheduleEntity schedule) {
         if (ScheduleEntity.ACTIVITY_TYPE_OUTDOOR.equals(schedule.getActivityType())) {
             alarmScheduler.scheduleNotification(this, schedule);
@@ -306,6 +321,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
         }
     }
 
+    // 알림 권한 있는지 확인함
     private boolean hasNotificationPermission() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             return true;
@@ -315,6 +331,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
                 == PackageManager.PERMISSION_GRANTED;
     }
 
+    // 날짜 선택 팝업 띄움
     private void showDatePicker() {
         Calendar calendar = calendarFromDate(selectedDate);
         new DatePickerDialog(
@@ -329,6 +346,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
         ).show();
     }
 
+    // 시간 선택 팝업 띄움
     private void showTimePicker() {
         Calendar calendar = calendarFromTime(selectedTime);
         new TimePickerDialog(
@@ -343,6 +361,7 @@ public class ScheduleFormActivity extends AppCompatActivity {
         ).show();
     }
 
+    // 선택된 날짜와 시간을 버튼에 표시함
     private void updateDateTimeButtons() {
         dateButton.setText(selectedDate);
         timeButton.setText(selectedTime);

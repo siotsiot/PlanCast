@@ -1,5 +1,6 @@
 package com.sch.plancast.domain;
 
+// 날씨 조언 결과를 담는 데이터 클래스
 public class WeatherAdviceResult {
 
     private final String riskMessage;
@@ -20,14 +21,17 @@ public class WeatherAdviceResult {
         return recommendedItems;
     }
 
+    // 위험 요소 존재 여부 반환함
     public boolean hasRisk() {
         return hasRisk;
     }
 
+    // 화면 표시용 위험 안내 텍스트 구성함
     public String getRiskDisplayText() {
         return "위험 안내\n" + riskMessage;
     }
 
+    // 화면 표시용 추천 준비물 텍스트 구성함
     public String getRecommendationDisplayText() {
         return "추천 준비물\n" + recommendedItems;
     }

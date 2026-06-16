@@ -81,6 +81,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
+        
+        // 엣지 투 에지 시스템바 패딩 적용함
         View mainView = findViewById(R.id.main);
         int initialLeftPadding = mainView.getPaddingLeft();
         int initialTopPadding = mainView.getPaddingTop();
@@ -97,12 +99,14 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
+        // 저장소 및 도메인 객체 초기화함
         scheduleRepository = new ScheduleRepository(this);
         weatherRepository = new WeatherRepository();
         weatherAdvisor = new WeatherAdvisor();
         locationProvider = new LocationProvider(this);
         selectedDate = formatDate(System.currentTimeMillis());
 
+        // UI 뷰 컴포넌트 초기화함
         weatherContentView = findViewById(R.id.weatherContentView);
         scheduleContentView = findViewById(R.id.scheduleContentView);
         locationStatusTextView = findViewById(R.id.locationStatusTextView);
@@ -114,11 +118,13 @@ public class MainActivity extends AppCompatActivity {
         selectedDateTextView = findViewById(R.id.selectedDateTextView);
         emptyTextView = findViewById(R.id.emptyTextView);
 
+        // 예보 리스트 어댑터 및 리사이클러뷰 설정함
         RecyclerView forecastRecyclerView = findViewById(R.id.forecastRecyclerView);
         dailyForecastAdapter = new DailyForecastAdapter();
         forecastRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         forecastRecyclerView.setAdapter(dailyForecastAdapter);
 
+        // 일정 리스트 어댑터 및 리사이클러뷰 설정함
         RecyclerView scheduleRecyclerView = findViewById(R.id.scheduleRecyclerView);
         scheduleAdapter = new ScheduleAdapter(schedule -> {
             Intent intent = new Intent(MainActivity.this, ScheduleFormActivity.class);
@@ -128,6 +134,7 @@ public class MainActivity extends AppCompatActivity {
         scheduleRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         scheduleRecyclerView.setAdapter(scheduleAdapter);
 
+        // 달력 날짜 변경 시 일정 새로고침함
         android.widget.CalendarView calendarView = findViewById(R.id.calendarView);
         calendarView.setOnDateChangeListener((view, year, month, dayOfMonth) -> {
             selectedDate = String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, dayOfMonth);
@@ -135,6 +142,7 @@ public class MainActivity extends AppCompatActivity {
             loadSchedulesBySelectedDate();
         });
 
+        // 일정 추가 버튼 클릭 시 폼 이동함
         addScheduleButton = findViewById(R.id.addScheduleButton);
         addScheduleButton.setOnClickListener(view -> {
             Intent intent = new Intent(MainActivity.this, ScheduleFormActivity.class);
@@ -142,10 +150,9 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
+        // 테스트 알림 실행 버튼 설정함
         Button testNotificationButton = findViewById(R.id.testNotificationButton);
         testNotificationButton.setOnClickListener(view -> {
-            // 발표 시연 및 개발 검증용 버튼입니다.
-            // 1분 뒤 DailyWeatherCheckReceiver를 실행해 백그라운드 알림 흐름을 빠르게 확인합니다.
             Log.d(WEATHER_CHECK_TAG, "테스트 알림 예약 버튼 클릭됨");
             requestNotificationPermissionIfNeeded();
             new AlarmScheduler().scheduleDailyWeatherCheckForTest(MainActivity.this);
@@ -157,12 +164,14 @@ public class MainActivity extends AppCompatActivity {
             Log.d(WEATHER_CHECK_TAG, "테스트 알림 예약 Toast 표시 완료");
         });
 
+        // 하단 탭 및 초기 상태 설정함
         setupBottomNavigation();
         updateSelectedDateLabel();
         checkLocationPermissionAndLoadLocation();
         new AlarmScheduler().scheduleDailyWeatherCheck(this);
     }
 
+    // 하단 탭 네비게이션 설정함
     private void setupBottomNavigation() {
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
         bottomNavigationView.setOnItemSelectedListener(item -> {
@@ -182,12 +191,14 @@ public class MainActivity extends AppCompatActivity {
         showWeatherTab();
     }
 
+    // 날씨 탭 표시함
     private void showWeatherTab() {
         weatherContentView.setVisibility(View.VISIBLE);
         scheduleContentView.setVisibility(View.GONE);
         addScheduleButton.setVisibility(View.GONE);
     }
 
+    // 일정 탭 표시함
     private void showScheduleTab() {
         weatherContentView.setVisibility(View.GONE);
         scheduleContentView.setVisibility(View.VISIBLE);
@@ -209,6 +220,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // 권한 요청 결과 처리함
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -227,6 +239,7 @@ public class MainActivity extends AppCompatActivity {
         requestNotificationPermissionIfNeeded();
     }
 
+    // 위치 권한 확인 및 위치 로드함
     private void checkLocationPermissionAndLoadLocation() {
         if (hasLocationPermission()) {
             loadCurrentLocation();
@@ -265,6 +278,7 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
+    // 알림 권한 필요한 경우 요청함
     private void requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             return;
@@ -295,6 +309,7 @@ public class MainActivity extends AppCompatActivity {
         ).show();
     }
 
+    // 현재 기기 위치 및 날씨 정보 불러옴
     private void loadCurrentLocation() {
         locationStatusTextView.setText("📍 위치 확인 중...");
         weatherInfoTextView.setText("현재 위치를 확인한 뒤 날씨를 불러옵니다.");
@@ -327,14 +342,13 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // 마지막 위치 정보 저장함
     private void saveLastLocation(double latitude, double longitude) {
         SharedPreferences sharedPreferences = getSharedPreferences(
                 DailyWeatherCheckReceiver.WEATHER_PREFS_NAME,
                 MODE_PRIVATE
         );
 
-        // BroadcastReceiver는 권한 요청 UI를 띄울 수 없으므로,
-        // 메인 화면에서 위치 조회에 성공했을 때 마지막 좌표를 저장해 둡니다.
         sharedPreferences.edit()
                 .putBoolean(DailyWeatherCheckReceiver.KEY_HAS_LAST_LOCATION, true)
                 .putString(DailyWeatherCheckReceiver.KEY_LAST_LATITUDE, String.valueOf(latitude))
@@ -342,6 +356,7 @@ public class MainActivity extends AppCompatActivity {
                 .apply();
     }
 
+    // 좌표를 주소 문자열로 변환함
     private String getAddressFromLocation(double latitude, double longitude) {
         Geocoder geocoder = new Geocoder(this, Locale.KOREA);
         try {
@@ -365,6 +380,7 @@ public class MainActivity extends AppCompatActivity {
         return "📍 위치 확인 중...";
     }
 
+    // 현재 날씨 API 호출함
     private void loadCurrentWeather(double latitude, double longitude) {
         weatherInfoTextView.setText("현재 날씨를 불러오고 있습니다.");
         weatherRepository.getCurrentWeather(latitude, longitude, new WeatherRepository.WeatherCallback() {
@@ -397,6 +413,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // 5일 일기 예보 API 호출함
     private void loadForecast(double latitude, double longitude) {
         showForecastLoading();
         weatherRepository.getForecast(latitude, longitude, new WeatherRepository.ForecastCallback() {
@@ -421,6 +438,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // 예보 데이터를 날짜별 요약 항목으로 변환함
     private List<DailyForecastItem> createDailyForecastItems(ForecastResponse forecastResponse) {
         if (forecastResponse == null) {
             return Collections.emptyList();
@@ -454,6 +472,7 @@ public class MainActivity extends AppCompatActivity {
         return displayItems;
     }
 
+    // 예보 항목에서 날짜 문자열 추출함
     private String extractForecastDate(ForecastResponse.ForecastItem forecastItem) {
         if (forecastItem == null) {
             return null;
@@ -466,6 +485,7 @@ public class MainActivity extends AppCompatActivity {
         return dateTimeText.substring(0, 10);
     }
 
+    // 예보 항목의 위험 여부 확인함
     private boolean isRiskyForecastItem(ForecastResponse.ForecastItem forecastItem) {
         if (forecastItem == null) {
             return false;
@@ -479,6 +499,7 @@ public class MainActivity extends AppCompatActivity {
         ).hasRisk();
     }
 
+    // 대표 예보 항목을 교체해야 하는지 판단함
     private boolean shouldReplaceRepresentative(
             ForecastResponse.ForecastItem candidate,
             boolean candidateHasRisk,
@@ -497,6 +518,7 @@ public class MainActivity extends AppCompatActivity {
         return getNoonDistanceMinutes(candidate) < getNoonDistanceMinutes(current);
     }
 
+    // 정오와의 시간 차이 계산함
     private int getNoonDistanceMinutes(ForecastResponse.ForecastItem forecastItem) {
         if (forecastItem == null || forecastItem.getDtTxt().length() < 16) {
             return Integer.MAX_VALUE;
@@ -512,6 +534,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // 날짜 문자열에서 요일 추출함
     private String getDayOfWeek(String dateText) {
         SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         inputFormat.setLenient(false);
@@ -525,6 +548,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // 예보 항목의 날씨 설명 텍스트 반환함
     private String getForecastDescription(ForecastResponse.ForecastItem forecastItem) {
         if (forecastItem == null) {
             return "날씨 정보 없음";
@@ -542,6 +566,7 @@ public class MainActivity extends AppCompatActivity {
         return "날씨 정보 없음";
     }
 
+    // 상세 예보 텍스트 생성함
     private String getForecastDetailText(boolean hasRisk, double windSpeed) {
         if (Double.isNaN(windSpeed)) {
             return hasRisk ? "위험 주의" : "풍속 정보 없음";
@@ -553,6 +578,7 @@ public class MainActivity extends AppCompatActivity {
         return String.format(Locale.US, "풍속 %.1fm/s", windSpeed);
     }
 
+    // 날씨 조언 UI 갱신함
     private void updateWeatherAdvice(WeatherRepository.WeatherInfo weatherInfo) {
         WeatherAdviceResult adviceResult = weatherAdvisor.advise(
                 weatherInfo.getWeatherMain(),
@@ -564,11 +590,13 @@ public class MainActivity extends AppCompatActivity {
         weatherRecommendationTextView.setText(adviceResult.getRecommendedItems());
     }
 
+    // 날씨 정보 부재 시 UI 상태 처리함
     private void showWeatherAdviceUnavailable() {
         weatherRiskTextView.setText("날씨 정보를 불러온 뒤 확인할 수 있습니다.");
         weatherRecommendationTextView.setText("날씨 정보를 불러온 뒤 확인할 수 있습니다.");
     }
 
+    // 예보 로딩 상태 표시함
     private void showForecastLoading() {
         if (dailyForecastAdapter != null) {
             dailyForecastAdapter.submitList(Collections.emptyList());
@@ -579,6 +607,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // 예보 정보를 불러올 수 없을 때 UI 처리함
     private void showForecastUnavailable(String message) {
         if (dailyForecastAdapter != null) {
             dailyForecastAdapter.submitList(Collections.emptyList());
@@ -589,6 +618,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // 위치 권한 거부 시 UI 상태 표시함
     private void showLocationPermissionDeniedMessage() {
         String message = "위치 권한이 거부되어 현재 위치 기반 날씨를 사용할 수 없습니다.";
         locationStatusTextView.setText(message);
@@ -601,6 +631,7 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
+    // 선택된 날짜의 일정 목록 로드함
     private void loadSchedulesBySelectedDate() {
         String requestedDate = selectedDate;
         scheduleRepository.getByDate(requestedDate, new ScheduleRepository.RepositoryCallback<List<ScheduleEntity>>() {
@@ -626,14 +657,17 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // 선택된 날짜 레이블 갱신함
     private void updateSelectedDateLabel() {
         selectedDateTextView.setText(selectedDate + " 일정");
     }
 
+    // 타임스탬프를 날짜 문자열로 변환함
     private String formatDate(long timeMillis) {
         return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date(timeMillis));
     }
 
+    // 일일 예보 요약을 관리하는 내부 클래스임
     private class DailyForecastSummary {
 
         private final String date;
@@ -648,6 +682,7 @@ public class MainActivity extends AppCompatActivity {
             this.date = date;
         }
 
+        // 특정 시간대의 예보 데이터 추가함
         void add(ForecastResponse.ForecastItem forecastItem) {
             Double temperature = forecastItem.getTemperature();
             if (temperature != null) {
@@ -673,10 +708,12 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+        // 유효한 기온 정보 보유 여부 확인함
         boolean hasTemperature() {
             return maxTemperature > -Double.MAX_VALUE && minTemperature < Double.MAX_VALUE;
         }
 
+        // UI 표시용 일일 예보 항목으로 변환함
         DailyForecastItem toDisplayItem() {
             return new DailyForecastItem(
                     date,

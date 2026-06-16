@@ -11,26 +11,31 @@ import java.util.List;
 @Dao
 public interface ScheduleDao {
 
+    // 새로운 일정 저장
     @Insert
     long insert(ScheduleEntity schedule);
 
+    // 기존 일정 수정
     @Update
     void update(ScheduleEntity schedule);
 
+    // 일정 삭제
     @Delete
     void delete(ScheduleEntity schedule);
 
+    // 모든 일정 날짜순 조회
     @Query("SELECT * FROM schedules ORDER BY date ASC, time ASC")
     List<ScheduleEntity> getAll();
 
+    // 특정 날짜의 일정 조회
     @Query("SELECT * FROM schedules WHERE date = :date ORDER BY time ASC")
     List<ScheduleEntity> getByDate(String date);
 
+    // ID로 특정 일정 조회함
     @Query("SELECT * FROM schedules WHERE id = :id LIMIT 1")
     ScheduleEntity getById(int id);
 
-    // 오늘부터 향후 5일 이내의 야외 일정만 조회하기 위한 쿼리입니다.
-    // date는 yyyy-MM-dd 형식으로 저장되어 있으므로 문자열 비교로 날짜 범위 조회가 가능합니다.
+    // 기간 내 야외 일정만 조회함
     @Query("SELECT * FROM schedules " +
             "WHERE date >= :startDate " +
             "AND date <= :endDate " +

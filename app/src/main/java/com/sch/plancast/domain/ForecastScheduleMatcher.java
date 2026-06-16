@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+// 일정과 날씨 예보를 비교하여 위험도를 판단함
 public class ForecastScheduleMatcher {
 
     private static final String TAG = "ForecastScheduleMatcher";
@@ -27,6 +28,7 @@ public class ForecastScheduleMatcher {
         weatherAdvisor = new WeatherAdvisor();
     }
 
+    // 야외 일정 중 날씨 위험이 있는 일정을 찾아 리스트로 반환함
     public List<ForecastScheduleRiskResult> findRiskyOutdoorSchedules(
             List<ScheduleEntity> schedules,
             ForecastResponse forecastResponse
@@ -42,9 +44,7 @@ public class ForecastScheduleMatcher {
         }
         List<ForecastScheduleRiskResult> riskyResults = new ArrayList<>();
 
-        // 발표용으로 이해하기 쉽게, 일정 시간과 가장 가까운 예보 1개만 보지 않습니다.
-        // 야외 일정이 있는 "날짜"의 3시간 단위 예보를 모두 검사하고,
-        // 그 날짜에 비/눈/뇌우/강풍/폭염/한파 중 하나라도 있으면 위험 일정으로 판단합니다.
+        // 모든 일정을 순회하며 야외 일정의 날씨 위험도 확인함
         for (ScheduleEntity schedule : schedules) {
             if (!isOutdoorSchedule(schedule)) {
                 continue;
@@ -54,6 +54,7 @@ public class ForecastScheduleMatcher {
                 continue;
             }
 
+            // 특정 날짜의 모든 시간대 예보를 분석하여 결과 생성함
             ForecastScheduleRiskResult result = createDailyRiskResult(schedule, forecastItems);
             if (result != null && result.hasRisk()) {
                 riskyResults.add(result);
@@ -69,11 +70,13 @@ public class ForecastScheduleMatcher {
         return riskyResults;
     }
 
+    // 야외 활동 여부 확인함
     private boolean isOutdoorSchedule(ScheduleEntity schedule) {
         return schedule != null
                 && ScheduleEntity.ACTIVITY_TYPE_OUTDOOR.equals(schedule.getActivityType());
     }
 
+    // 특정 일정 날짜의 예보들을 종합하여 위험 분석 결과를 생성함
     private ForecastScheduleRiskResult createDailyRiskResult(
             ScheduleEntity schedule,
             List<ForecastResponse.ForecastItem> forecastItems
@@ -87,12 +90,12 @@ public class ForecastScheduleMatcher {
         Set<String> recommendedItems = new LinkedHashSet<>();
 
         for (ForecastResponse.ForecastItem forecastItem : forecastItems) {
+            // 일정 날짜와 예보 날짜가 일치하는지 확인함
             if (!isSameScheduleDate(schedule.getDate(), forecastItem)) {
                 continue;
             }
 
-            // 같은 날짜에 속한 모든 예보를 WeatherAdvisor로 검사합니다.
-            // 여러 시간대에서 위험 요소가 발견되면 메시지와 준비물을 합치고, 중복 준비물은 제거합니다.
+            // WeatherAdvisor를 통해 해당 시간대의 날씨 조언 구함
             WeatherAdviceResult adviceResult = weatherAdvisor.advise(
                     forecastItem.getWeatherMain(),
                     forecastItem.getDescription(),
@@ -100,6 +103,7 @@ public class ForecastScheduleMatcher {
                     forecastItem.getWindSpeed()
             );
 
+            // 위험 요소가 있다면 메시지와 준비물을 합침 (중복 제거 포함)
             if (adviceResult.hasRisk()) {
                 if (representativeForecast == null) {
                     representativeForecast = forecastItem;
@@ -113,6 +117,7 @@ public class ForecastScheduleMatcher {
             return null;
         }
 
+        // 종합된 결과를 바탕으로 최종 리스크 결과 객체 반환함
         return new ForecastScheduleRiskResult(
                 schedule,
                 representativeForecast.getDtTxt(),
@@ -126,6 +131,7 @@ public class ForecastScheduleMatcher {
         );
     }
 
+    // 일정 날짜와 예보 날짜 동일 여부 확인함
     private boolean isSameScheduleDate(String scheduleDate, ForecastResponse.ForecastItem forecastItem) {
         if (isBlank(scheduleDate)) {
             return false;
@@ -135,6 +141,7 @@ public class ForecastScheduleMatcher {
         return scheduleDate.equals(forecastDate);
     }
 
+    // 예보 객체에서 날짜 문자열(yyyy-MM-dd) 추출함
     private String getForecastDate(ForecastResponse.ForecastItem forecastItem) {
         if (forecastItem == null || isBlank(forecastItem.getDtTxt())) {
             return null;
@@ -149,6 +156,7 @@ public class ForecastScheduleMatcher {
         return dateFormat.format(forecastDateTime);
     }
 
+    // 중복되지 않게 위험 메시지 리스트에 추가함
     private void addRiskMessages(Set<String> riskMessages, String messageText) {
         if (isBlank(messageText)) {
             return;
@@ -163,6 +171,7 @@ public class ForecastScheduleMatcher {
         }
     }
 
+    // 중복되지 않게 추천 준비물 리스트에 추가함
     private void addRecommendedItems(Set<String> recommendedItems, String itemText) {
         if (isBlank(itemText)) {
             return;
@@ -177,6 +186,7 @@ public class ForecastScheduleMatcher {
         }
     }
 
+    // 메시지들을 줄바꿈으로 합침
     private String joinLines(Set<String> values) {
         StringBuilder builder = new StringBuilder();
         int index = 0;
@@ -190,6 +200,7 @@ public class ForecastScheduleMatcher {
         return builder.toString();
     }
 
+    // 준비물들을 쉼표로 합침
     private String joinComma(Set<String> values) {
         StringBuilder builder = new StringBuilder();
         int index = 0;
@@ -203,6 +214,7 @@ public class ForecastScheduleMatcher {
         return builder.toString();
     }
 
+    // 문자열을 Date 객체로 파싱함
     private Date parseDate(String value, String pattern) {
         SimpleDateFormat dateFormat = new SimpleDateFormat(pattern, Locale.US);
         dateFormat.setLenient(false);

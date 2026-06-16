@@ -14,10 +14,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+// 5일 날씨 예보 목록을 리사이클러뷰에 표시함
 public class DailyForecastAdapter extends RecyclerView.Adapter<DailyForecastAdapter.ForecastViewHolder> {
 
     private final List<DailyForecastItem> forecastItems = new ArrayList<>();
 
+    // 예보 목록 데이터 업데이트함
     public void submitList(List<DailyForecastItem> newItems) {
         forecastItems.clear();
         if (newItems != null) {
@@ -29,6 +31,7 @@ public class DailyForecastAdapter extends RecyclerView.Adapter<DailyForecastAdap
     @NonNull
     @Override
     public ForecastViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        // 아이템 레이아웃 인플레이트함
         View view = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_daily_forecast, parent, false);
         return new ForecastViewHolder(view);
@@ -36,6 +39,7 @@ public class DailyForecastAdapter extends RecyclerView.Adapter<DailyForecastAdap
 
     @Override
     public void onBindViewHolder(@NonNull ForecastViewHolder holder, int position) {
+        // 데이터를 뷰홀더에 바인딩하여 화면에 표시함
         DailyForecastItem item = forecastItems.get(position);
         holder.dateTextView.setText(item.getDate());
         holder.dayTextView.setText(item.getDayOfWeek());
@@ -54,6 +58,7 @@ public class DailyForecastAdapter extends RecyclerView.Adapter<DailyForecastAdap
         return forecastItems.size();
     }
 
+    // 예보 항목 뷰를 관리하는 뷰홀더 클래스임
     static class ForecastViewHolder extends RecyclerView.ViewHolder {
 
         private final TextView dateTextView;

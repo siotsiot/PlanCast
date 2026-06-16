@@ -14,6 +14,7 @@ import com.sch.plancast.data.local.ScheduleEntity;
 import java.util.ArrayList;
 import java.util.List;
 
+// 일정 목록을 리사이클러뷰에 표시함
 public class ScheduleAdapter extends RecyclerView.Adapter<ScheduleAdapter.ScheduleViewHolder> {
 
     private static final int MEMO_PREVIEW_LIMIT = 40;
@@ -28,12 +29,14 @@ public class ScheduleAdapter extends RecyclerView.Adapter<ScheduleAdapter.Schedu
     @NonNull
     @Override
     public ScheduleViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        // 아이템 뷰 생성함
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_schedule, parent, false);
         return new ScheduleViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(@NonNull ScheduleViewHolder holder, int position) {
+        // 데이터를 뷰홀더에 바인딩함
         ScheduleEntity schedule = schedules.get(position);
         holder.bind(schedule);
     }
@@ -43,6 +46,7 @@ public class ScheduleAdapter extends RecyclerView.Adapter<ScheduleAdapter.Schedu
         return schedules.size();
     }
 
+    // 새로운 데이터 리스트로 갱신함
     public void submitList(List<ScheduleEntity> newSchedules) {
         schedules.clear();
         if (newSchedules != null) {
@@ -51,6 +55,7 @@ public class ScheduleAdapter extends RecyclerView.Adapter<ScheduleAdapter.Schedu
         notifyDataSetChanged();
     }
 
+    // 활동 유형 텍스트 반환함
     private String getActivityTypeText(String activityType) {
         if (ScheduleEntity.ACTIVITY_TYPE_OUTDOOR.equals(activityType)) {
             return "야외";
@@ -58,6 +63,7 @@ public class ScheduleAdapter extends RecyclerView.Adapter<ScheduleAdapter.Schedu
         return "실내";
     }
 
+    // 메모 미리보기 글자수 제한함
     private String getMemoPreview(String memo) {
         if (memo == null || memo.trim().isEmpty()) {
             return "메모 없음";
@@ -70,6 +76,7 @@ public class ScheduleAdapter extends RecyclerView.Adapter<ScheduleAdapter.Schedu
         return trimmedMemo.substring(0, MEMO_PREVIEW_LIMIT) + "...";
     }
 
+    // 클릭 리스너 인터페이스임
     public interface OnScheduleClickListener {
         void onScheduleClick(ScheduleEntity schedule);
     }
@@ -89,6 +96,7 @@ public class ScheduleAdapter extends RecyclerView.Adapter<ScheduleAdapter.Schedu
             memoTextView = itemView.findViewById(R.id.scheduleMemoTextView);
         }
 
+        // 데이터를 뷰에 표시함
         void bind(ScheduleEntity schedule) {
             titleTextView.setText(schedule.getTitle());
             timeTextView.setText(schedule.getTime());

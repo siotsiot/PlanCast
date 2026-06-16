@@ -27,6 +27,7 @@ public class ScheduleRepository {
     private final Handler mainHandler;
 
     public ScheduleRepository(Context context) {
+        // 데이터베이스 및 쓰레드 풀 초기화함
         AppDatabase database = AppDatabase.getInstance(context);
         scheduleDao = database.scheduleDao();
         executorService = Executors.newSingleThreadExecutor();
@@ -73,8 +74,7 @@ public class ScheduleRepository {
         String startDate = getTodayDateString();
         String endDate = getDateAfterDaysString(OUTDOOR_LOOKAHEAD_DAYS);
 
-        // Forecast API와 매칭하기 전 단계이므로, 여기서는 Room DB에서 "조회 대상 일정"만 분리합니다.
-        // 실제 예보 시간과 일정 시간 비교는 다음 단계에서 Repository 또는 별도 도메인 계층으로 연결하면 됩니다.
+        // 향후 5일간의 야외 활동 일정만 DB에서 조회함
         executeRead(() -> {
             List<ScheduleEntity> schedules = scheduleDao.getOutdoorSchedulesBetween(
                     startDate,
@@ -87,6 +87,7 @@ public class ScheduleRepository {
     }
 
     public void shutdown() {
+        // 리소스 정리함
         executorService.shutdown();
     }
 
@@ -105,6 +106,7 @@ public class ScheduleRepository {
     }
 
     private void executeInsert(ScheduleEntity schedule, RepositoryCallback<Void> callback) {
+        // 백그라운드에서 삽입 실행하고 메인 스레드로 결과 보냄
         executorService.execute(() -> {
             try {
                 long insertedId = scheduleDao.insert(schedule);
@@ -117,6 +119,7 @@ public class ScheduleRepository {
     }
 
     private void executeWrite(DatabaseWrite write, RepositoryCallback<Void> callback) {
+        // 쓰기 작업 실행함
         executorService.execute(() -> {
             try {
                 write.run();
@@ -128,6 +131,7 @@ public class ScheduleRepository {
     }
 
     private <T> void executeRead(DatabaseRead<T> read, RepositoryCallback<T> callback) {
+        // 읽기 작업 실행함
         executorService.execute(() -> {
             try {
                 T result = read.run();
